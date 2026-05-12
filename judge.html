@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Panel Sędziego — Strongman</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #1a2942; --accent: #2980b9;
+  --green: #27ae60;   --red: #e74c3c;
+  --bg: #f0f2f5;      --card: #fff;
+  --text: #2d3436;    --muted: #636e72;
+  --border: #cdd3da;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100dvh;
+}
+header {
+  background: var(--primary); color: #fff;
+  padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+#judgeIcon { font-size: 1.8rem; flex-shrink: 0; }
+#headerText h1 { font-size: 1rem; font-weight: 700; }
+#headerText p  { font-size: 0.78rem; color: rgba(255,255,255,0.65); margin-top: 2px; }
+#connectionBadge {
+  margin-left: auto; font-size: 0.72rem; font-weight: 700;
+  padding: 4px 10px; border-radius: 20px;
+  background: rgba(255,255,255,0.12); color: #fff;
+  display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+}
+#connDot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--red); animation: blink 1.2s ease-in-out infinite;
+}
+#connDot.ok { background: var(--green); animation: none; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── EKRAN ŁADOWANIA ── */
+#loadingScreen {
+  padding: 40px 24px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+}
+#loadingScreen h2 { font-size: 1.2rem; color: var(--primary); }
+#loadingScreen p  { font-size: 0.9rem; color: var(--muted); line-height: 1.5; }
+.spinner {
+  width: 48px; height: 48px; border-radius: 50%;
+  border: 4px solid rgba(41,128,185,0.2);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── EKRAN BŁĘDU ── */
+#errorScreen {
+  padding: 32px 24px; text-align: center;
+  display: none; flex-direction: column; align-items: center; gap: 14px;
+}
+#errorScreen h2 { font-size: 1.2rem; color: var(--red); }
+#errorScreen p  { font-size: 0.9rem; color: var(--muted); line-height: 1.5; max-width: 340px; }
+#retryBtn {
+  padding: 13px 28px; font-size: 1rem; font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), #1a6fa0);
+  color: #fff; border: none; border-radius: 12px; cursor: pointer;
+}
+
+/* ── EKRAN SĘDZIEGO ── */
+#judgeScreen { display: none; padding: 12px 14px; max-width: 560px; margin: 0 auto; }
+
+#competitionInfo {
+  background: var(--card); border-radius: 12px;
+  padding: 14px 16px; margin-bottom: 16px;
+  border-left: 4px solid var(--accent);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+#competitionInfo h3 {
+  font-size: 0.75rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;
+}
+#eventTitleDisplay { font-size: clamp(1.1rem, 4vw, 1.4rem); font-weight: 800; color: var(--primary); line-height: 1.3; }
+#eventTypeDisplay  { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+#formatHint {
+  font-size: 0.75rem; color: #888; margin-top: 8px;
+  padding: 6px 10px; background: #f8f9fa; border-radius: 8px; line-height: 1.5;
+}
+
+/* ══════════════════════════════════════════════════
+   KARTA ZAWODNIKA
+   ══════════════════════════════════════════════════ */
+.judge-card {
+  background: var(--card);
+  border-radius: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  border: 2px solid var(--border);
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.judge-card.sent          { border-color: var(--green); box-shadow: 0 2px 10px rgba(39,174,96,0.2); }
+.judge-card.sent .card-header { background: rgba(39,174,96,0.08); }
+.judge-card--first        { border-color: #f1c40f; box-shadow: 0 0 0 2px rgba(241,196,15,0.4), 0 2px 10px rgba(0,0,0,0.08); }
+.judge-card--first .card-header { background: rgba(241,196,15,0.1); }
+
+/* Nagłówek karty */
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1.5px solid var(--border);
+  background: rgba(26,41,66,0.03);
+}
+.card-name {
+  font-size: clamp(1rem, 4vw, 1.2rem);
+  font-weight: 800;
+  color: var(--primary);
+  flex: 1;
+  line-height: 1.2;
+  word-break: break-word;
+}
+.card-status {
+  font-size: 0.75rem; font-weight: 700;
+  padding: 4px 10px; border-radius: 20px;
+  background: #eee; color: #666; flex-shrink: 0;
+  white-space: nowrap;
+}
+.judge-card.sent .card-status { background: var(--green); color: #fff; }
+
+/* Ciało karty */
+.card-body { padding: 14px 14px 16px; }
+
+.result-label {
+  font-size: 0.7rem; font-weight: 800; color: #888;
+  text-transform: uppercase; letter-spacing: 2px;
+  margin-bottom: 10px; display: block; text-align: center;
+}
+
+/* ── Główny layout: input + przycisk ── */
+.result-input-wrap {
+  display: grid;
+  /* Input zabiera wolne miejsce, przycisk ma stałą szerokość */
+  grid-template-columns: 1fr 80px;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.judge-result-input {
+  /* Zajmuje całą dostępną szerokość */
+  width: 100%;
+  min-height: 72px;
+  padding: 12px 8px;
+  font-size: clamp(1.6rem, 8vw, 2.4rem);
+  font-weight: 800;
+  text-align: center;
+  border: 2.5px solid var(--border);
+  border-radius: 12px;
+  background: #f8faff;
+  color: var(--primary);
+  letter-spacing: 2px;
+  /* Zapobiegaj skalowaniu na iOS */
+  -webkit-appearance: none;
+  appearance: none;
+}
+.judge-result-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(41,128,185,0.15);
+}
+.judge-result-input.filled {
+  border-color: var(--green);
+  background: #f0faf4;
+  color: #1a5c35;
+}
+.judge-result-input[readonly] {
+  background: #f0faf4;
+  border-color: var(--green);
+  color: #888;
+  cursor: not-allowed;
+}
+
+/* Przycisk zatwierdź — zawsze widoczny, duży, zielony */
+.send-btn {
+  /* Dopasuj wysokość do inputa */
+  width: 100%;
+  min-height: 72px;
+  padding: 0;
+  font-size: clamp(1.8rem, 6vw, 2.4rem);
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(160deg, #2ecc71, #1e8449);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(39,174,96,0.35);
+  transition: transform 0.1s, box-shadow 0.1s, background 0.2s;
+  /* Zapobiega zniknięciu przez overflow rodziców */
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.send-btn:active:not(.sent) {
+  transform: scale(0.94);
+  box-shadow: 0 2px 6px rgba(39,174,96,0.25);
+}
+.send-btn.sent {
+  background: linear-gradient(160deg, #95a5a6, #7f8c8d);
+  box-shadow: none;
+  cursor: default;
+}
+
+/* Potwierdzenie wysłania */
+.sent-info {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: var(--green);
+  font-weight: 700;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+}
+.judge-card.sent .sent-info { display: flex; }
+
+/* ══════════════════════════════════════════════════
+   PRZYCISKI GLOBALNE
+   ══════════════════════════════════════════════════ */
+#sendAllBtn {
+  display: block;
+  width: 100%;
+  padding: 18px;
+  font-size: clamp(1rem, 4vw, 1.2rem);
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), #1a6fa0);
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  margin: 8px 0 24px;
+  box-shadow: 0 4px 18px rgba(41,128,185,0.35);
+  letter-spacing: 0.5px;
+  -webkit-tap-highlight-color: transparent;
+}
+#sendAllBtn:active { transform: scale(0.98); }
+
+#refreshBtn {
+  display: block;
+  width: 100%;
+  padding: 13px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  background: rgba(26,41,66,0.06);
+  color: var(--primary);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  margin-bottom: 14px;
+}
+
+/* ══════════════════════════════════════════════════
+   STATUS
+   ══════════════════════════════════════════════════ */
+#statusMsg {
+  text-align: center;
+  padding: 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: none;
+  border-radius: 10px;
+  margin-top: 4px;
+}
+#statusMsg.show { display: block; }
+#statusMsg.ok   { background: rgba(39,174,96,0.12);  color: #1a5c35; }
+#statusMsg.err  { background: rgba(231,76,60,0.12);  color: #922b21; }
+</style>
+</head>
+<body>
+
+<header>
+  <div id="judgeIcon">⚖️</div>
+  <div id="headerText">
+    <h1>Panel Sędziego</h1>
+    <p id="judgeLabel">Strongman — System Zarządzania</p>
+  </div>
+  <div id="connectionBadge">
+    <div id="connDot"></div>
+    <span id="connText">Łączenie…</span>
+  </div>
+</header>
+
+<!-- ŁADOWANIE -->
+<div id="loadingScreen">
+  <div class="spinner"></div>
+  <h2>Łączenie z sesją…</h2>
+  <p>Pobieram dane od Sędziego Głównego.<br>Upewnij się że masz dostęp do internetu.</p>
+</div>
+
+<!-- BŁĄD -->
+<div id="errorScreen">
+  <div style="font-size:3rem;">⚠️</div>
+  <h2 id="errorTitle">Nie znaleziono sesji</h2>
+  <p id="errorMsg">Sprawdź link lub poproś Sędziego Głównego o wysłanie nowego.</p>
+  <button id="retryBtn" onclick="tryConnect()">🔄 Spróbuj ponownie</button>
+</div>
+
+<!-- EKRAN SĘDZIEGO -->
+<div id="judgeScreen">
+  <div id="competitionInfo">
+    <h3>Aktualna Konkurencja</h3>
+    <div id="eventTitleDisplay">—</div>
+    <div id="eventTypeDisplay">—</div>
+    <div id="formatHint">
+      📋 Format: czas → <code>22.35</code> lub <code>1:22.55</code> &nbsp;|&nbsp;
+      DNF+dystans → <code>018.5</code> (0 na początku) &nbsp;|&nbsp; DNF → <code>0</code>
+    </div>
+  </div>
+
+  <div id="orderInfo" style="font-size:0.78rem;color:#636e72;text-align:center;padding:6px 0 2px;"></div>
+  <button id="refreshBtn" onclick="refreshSession()">🔄 Odśwież dane</button>
+  <div id="judgeCardsList"></div>
+  <button id="sendAllBtn" onclick="sendAll()">📤 Wyślij wszystkie wyniki</button>
+  <div id="statusMsg"></div>
+</div>
+
+<script type="module">
+// ─────────────────────────────────────────────────────────────
+// KONFIGURACJA — musi być identyczna jak w js/judge.js
+// ─────────────────────────────────────────────────────────────
+// WAŻNE: skopiuj tutaj tę samą konfigurację Firebase co w js/judge.js
+const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyAse1NPy31AUzct3fp9tnZqQEGdEwk38ek",
+    authDomain:        "strongman-zawody.firebaseapp.com",
+    databaseURL:       "https://strongman-zawody-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId:         "strongman-zawody",
+    storageBucket:     "strongman-zawody.firebasestorage.app",
+    messagingSenderId: "469924902322",
+    appId:             "1:469924902322:web:d9ac88a1c2b65b157860ab",
+    measurementId:     "G-14728F8658",
+};
+
+const LS_SESSION_KEY = 'strongman_judge_session';
+const LS_RESULTS_PFX = 'strongman_judge_result_';
+
+let currentToken   = null;
+let currentSid     = null;
+let currentSession = null;
+let firebaseDb     = null;
+let fbFn           = null;
+let sessionUnsubscribe = null;
+let pollTimer      = null;
+let firebaseMode   = false;
+
+// ─── Pobierz parametry z URL ───────────────────────────────────
+const params = new URLSearchParams(location.search);
+currentToken = params.get('token') || '';
+currentSid   = params.get('sid')   || '';
+
+// ─── Inicjalizacja ─────────────────────────────────────────────
+async function init() {
+    if (!currentToken) {
+        showError('Brak tokenu', 'Link jest nieprawidłowy — brak parametru token. Poproś Sędziego Głównego o nowy link.');
+        return;
+    }
+    await tryConnect();
+}
+
+async function tryConnect() {
+    showScreen('loading');
+    const ok = await initFirebase();
+    if (ok) {
+        await connectFirebase();
+    } else {
+        connectLocalStorage();
+    }
+}
+
+// ─── Firebase ──────────────────────────────────────────────────
+function isFirebaseConfigured() {
+    return FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith('WPISZ');
+}
+
+async function initFirebase() {
+    if (!isFirebaseConfigured()) return false;
+    try {
+        const { initializeApp, getApps } = await import(
+            'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'
+        );
+        const fb = await import(
+            'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js'
+        );
+        const app = getApps().length > 0 ? getApps()[0] : initializeApp(FIREBASE_CONFIG);
+        firebaseDb = fb.getDatabase(app);
+        fbFn = { ref: fb.ref, set: fb.set, onValue: fb.onValue, remove: fb.remove };
+        firebaseMode = true;
+        return true;
+    } catch (err) {
+        console.warn('[Judge] Firebase init error:', err.message);
+        return false;
+    }
+}
+
+async function connectFirebase() {
+    try {
+        // Pobierz dane sesji z Firebase
+        const sessionRef = fbFn.ref(firebaseDb, `sessions/${currentSid}/judges/${currentToken}`);
+
+        // Użyj onValue żeby też nasłuchiwać zmian (np. zmiana konkurencji)
+        if (sessionUnsubscribe) sessionUnsubscribe();
+        sessionUnsubscribe = fbFn.onValue(sessionRef, (snapshot) => {
+            if (!snapshot.exists()) {
+                showError('Sesja wygasła', 'Dane sesji nie są już dostępne. Poproś Sędziego Głównego o nowy link.');
+                return;
+            }
+            const updated = snapshot.val();
+            const prevCompetitors = (currentSession?.competitors || []).join(',');
+            const newCompetitors  = (updated.competitors || []).join(',');
+            const orderChanged    = prevCompetitors !== newCompetitors;
+            const eventChanged    = currentSession && updated.eventTitle !== currentSession.eventTitle;
+            const isFirstLoad     = !currentSession;
+
+            if (isFirstLoad) {
+                currentSession = updated;
+                renderJudgeScreen(false);
+            } else if (orderChanged || eventChanged) {
+                // Zachowaj wpisane wartości przed przebudową
+                const savedInputs = {};
+                document.querySelectorAll('.judge-result-input:not([readonly])').forEach(inp => {
+                    if (inp.value.trim()) savedInputs[inp.dataset.name] = inp.value;
+                });
+                currentSession = updated;
+                renderJudgeScreen(false);
+                Object.entries(savedInputs).forEach(([name, val]) => {
+                    const safeId = name.replace(/[^a-zA-Z0-9]/g, '_');
+                    const inp = document.getElementById('input_' + safeId);
+                    if (inp && !inp.readOnly) {
+                        inp.value = val;
+                        inp.classList.toggle('filled', val !== '');
+                    }
+                });
+                showStatus('🔄 Nowa kolejność startowa!', 'ok');
+            } else {
+                currentSession = updated;
+                renderJudgeScreen(true); // tylko meta
+            }
+            setBadge(true);
+        }, (err) => {
+            console.warn('[Judge] Firebase session error:', err.message);
+            setBadge(false);
+            // Fallback do localStorage
+            connectLocalStorage();
+        });
+
+    } catch (err) {
+        console.warn('[Judge] connectFirebase error:', err.message);
+        connectLocalStorage();
+    }
+}
+
+function connectLocalStorage() {
+    // Tryb fallback — localStorage (tylko ten sam urządzenie)
+    const key = LS_SESSION_KEY + '_' + currentToken;
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+        showError(
+            'Nie znaleziono sesji',
+            'Firebase jest niedostępny, a dane sesji nie są w pamięci lokalnej.\n' +
+            'Upewnij się że jesteś na tym samym urządzeniu co Sędzia Główny lub sprawdź połączenie z internetem.'
+        );
+        return;
+    }
+    try {
+        currentSession = JSON.parse(raw);
+        renderJudgeScreen();
+        setBadge(false); // połączenie lokalne
+        // Poll co 3s na zmiany sesji
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(() => {
+            try {
+                const raw = localStorage.getItem(key);
+                if (!raw) return;
+                const updated = JSON.parse(raw);
+                if (!updated.ts || updated.ts === currentSession?.ts) return;
+
+                const prevCompetitors = (currentSession?.competitors || []).join(',');
+                const newCompetitors  = (updated.competitors || []).join(',');
+                const orderChanged    = prevCompetitors !== newCompetitors;
+                const eventChanged    = updated.eventTitle !== currentSession?.eventTitle;
+
+                currentSession = updated;
+
+                if (orderChanged || eventChanged) {
+                    // Kolejność lub konkurencja się zmieniła — przebuduj karty
+                    // Zachowaj wpisane wyniki dla zawodników których jeszcze nie wysłano
+                    const savedInputs = {};
+                    document.querySelectorAll('.judge-result-input:not([readonly])').forEach(inp => {
+                        if (inp.value.trim()) savedInputs[inp.dataset.name] = inp.value;
+                    });
+                    renderJudgeScreen(false); // pełna przebudowa
+                    // Przywróć wpisane wartości
+                    Object.entries(savedInputs).forEach(([name, val]) => {
+                        const safeId = name.replace(/[^a-zA-Z0-9]/g, '_');
+                        const inp = document.getElementById('input_' + safeId);
+                        if (inp && !inp.readOnly) {
+                            inp.value = val;
+                            inp.classList.toggle('filled', val !== '');
+                        }
+                    });
+                    showStatus('🔄 Kolejność zaktualizowana!', 'ok');
+                } else {
+                    // Tylko dane meta (np. typ) — lekka aktualizacja
+                    renderJudgeScreen(true);
+                }
+            } catch(e) { console.warn('Poll error:', e); }
+        }, 2000);
+    } catch (err) {
+        showError('Błąd odczytu', err.message);
+    }
+}
+
+// ─── Renderowanie ──────────────────────────────────────────────
+function renderJudgeScreen(softUpdate = false) {
+    showScreen('judge');
+    const s = currentSession;
+    if (!s) return;
+
+    document.getElementById('judgeLabel').textContent = s.label || 'Sędzia';
+    document.getElementById('eventTitleDisplay').textContent = s.eventTitle || '—';
+    document.getElementById('eventTypeDisplay').textContent  =
+        s.eventType === 'low'
+            ? '⬇️ Mniej = Lepiej (czas / dystans)'
+            : '⬆️ Więcej = Lepiej (powtórzenia / waga)';
+
+    // Pokaż nagłówek z liczbą zawodników i informacją o kolejności
+    const orderInfo = document.getElementById('orderInfo');
+    if (orderInfo) {
+        const n = (s.competitors || []).length;
+        orderInfo.textContent = `Kolejność startowa: ${n} zawodnik${n === 1 ? '' : n < 5 ? 'ów' : 'ów'} (od góry = startuje pierwszy)`;
+    }
+
+    if (softUpdate) return; // nie przebudowuj kart przy odświeżeniu info
+
+    const list = document.getElementById('judgeCardsList');
+    list.innerHTML = (s.competitors || []).map((name, idx) => {
+        const safeId = name.replace(/[^a-zA-Z0-9]/g, '_');
+        const isFirst = idx === 0;
+        const orderBadgeStyle = isFirst
+            ? 'background:#f1c40f;color:#1a2942;font-weight:800;'
+            : 'background:#e0e0e0;color:#555;';
+        return `
+        <div class="judge-card ${isFirst ? 'judge-card--first' : ''}" id="card_${safeId}" data-name="${esc(name)}">
+          <div class="card-header">
+            <span style="min-width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:800;flex-shrink:0;${orderBadgeStyle}">${isFirst ? 'START' : idx + 1}</span>
+            <span class="card-name">${esc(name)}</span>
+            <span class="card-status">oczekuje</span>
+          </div>
+          <div class="card-body">
+            <span class="result-label">Wynik</span>
+            <div class="result-input-wrap">
+              <input class="judge-result-input" id="input_${safeId}"
+                     type="text" inputmode="decimal"
+                     placeholder="wpisz wynik"
+                     data-name="${esc(name)}"
+                     oninput="onInputChange(this)"
+                     onkeydown="if(event.key==='Enter') window.sendResult('${esc(name)}')">
+              <button class="send-btn" id="sendbtn_${safeId}"
+                      onclick="window.sendResult('${esc(name)}')">✓</button>
+            </div>
+            <div class="sent-info">✅ Wysłano do sędziego głównego</div>
+          </div>
+        </div>`;
+    }).join('');
+}
+
+// ─── Wysyłanie wyników ─────────────────────────────────────────
+window.sendResult = async function(name) {
+    const safeId = name.replace(/[^a-zA-Z0-9]/g, '_');
+    const input  = document.getElementById('input_' + safeId);
+    const card   = document.getElementById('card_' + safeId);
+    if (!input || !currentToken) return;
+    const result = input.value.trim();
+    if (result === '') { input.focus(); return; }
+
+    const payload = {
+        result, name,
+        token: currentToken,
+        label: currentSession?.label || '',
+        ts: Date.now()
+    };
+
+    let sent = false;
+
+    if (firebaseMode && firebaseDb) {
+        try {
+            const sid = currentSid || currentSession?.sid;
+            const competitorKey = name.replace(/[^a-zA-Z0-9]/g, '_');
+            await fbFn.set(
+                fbFn.ref(firebaseDb, `sessions/${sid}/results/${currentToken}/${competitorKey}`),
+                payload
+            );
+            sent = true;
+        } catch (err) {
+            console.warn('[Judge] sendResult Firebase error:', err.message);
+        }
+    }
+
+    if (!sent) {
+        // Fallback localStorage
+        const key = LS_RESULTS_PFX + currentToken + '_' + name;
+        localStorage.setItem(key, JSON.stringify(payload));
+    }
+
+    // Wizualny feedback
+    card.classList.add('sent');
+    const btn = document.getElementById('sendbtn_' + safeId);
+    if (btn) btn.classList.add('sent');
+    input.readOnly = true;
+    showStatus(`✅ Wynik dla ${name} wysłany!`, 'ok');
+};
+
+window.sendAll = function() {
+    const inputs = document.querySelectorAll('.judge-result-input:not([readonly])');
+    let count = 0;
+    inputs.forEach(input => {
+        if (input.value.trim()) { window.sendResult(input.dataset.name); count++; }
+    });
+    if (count === 0) showStatus('Wpisz wyniki przed wysłaniem.', 'err');
+    else showStatus(`📤 Wysłano ${count} wynik(ów).`, 'ok');
+};
+
+window.refreshSession = function() {
+    if (firebaseMode) {
+        // Firebase aktualizuje się automatycznie przez onValue — tylko status
+        showStatus('🔄 Dane aktualizowane automatycznie przez Firebase.', 'ok');
+    } else {
+        connectLocalStorage();
+    }
+};
+
+window.onInputChange = function(input) {
+    input.classList.toggle('filled', input.value.trim() !== '');
+};
+
+// ─── Helpers UI ────────────────────────────────────────────────
+function showScreen(screen) {
+    document.getElementById('loadingScreen').style.display = screen === 'loading' ? 'flex'  : 'none';
+    document.getElementById('errorScreen').style.display   = screen === 'error'   ? 'flex'  : 'none';
+    document.getElementById('judgeScreen').style.display   = screen === 'judge'   ? 'block' : 'none';
+}
+
+function showError(title, msg) {
+    document.getElementById('errorTitle').textContent = title;
+    document.getElementById('errorMsg').textContent   = msg;
+    showScreen('error');
+    setBadge(false);
+}
+
+function setBadge(online) {
+    const dot  = document.getElementById('connDot');
+    const text = document.getElementById('connText');
+    if (online) { dot.classList.add('ok'); text.textContent = 'Połączono'; }
+    else        { dot.classList.remove('ok'); text.textContent = 'Tryb lokalny'; }
+}
+
+function showStatus(msg, type) {
+    const el = document.getElementById('statusMsg');
+    el.textContent = msg;
+    el.className = 'show ' + (type || '');
+    setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+function esc(s) {
+    return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Start ─────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

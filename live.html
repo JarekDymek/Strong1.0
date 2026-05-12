@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Wyniki na Żywo – Strongman</title>
+<style>
+/* ═══════════════════════════════════════════════════════════
+   STRONGMAN LIVE SCOREBOARD
+   Estetyka: sportowa arena — ciemne tło, złote akcenty, duże cyfry
+   ═══════════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Barlow+Condensed:wght@400;600&display=swap');
+
+:root {
+  --gold:    #f1c40f;
+  --silver:  #bdc3c7;
+  --bronze:  #e67e22;
+  --bg:      #0a0e1a;
+  --card:    #141929;
+  --border:  rgba(241,196,15,0.18);
+  --text:    #ecf0f1;
+  --muted:   rgba(236,240,241,0.5);
+  --green:   #2ecc71;
+  --red:     #e74c3c;
+  --accent:  #3498db;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Barlow Condensed', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(52,152,219,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(241,196,15,0.06) 0%, transparent 50%);
+}
+
+/* ── HEADER ── */
+#header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(10px,2vh,20px) clamp(12px,3vw,32px);
+  border-bottom: 1px solid var(--border);
+  background: rgba(10,14,26,0.85);
+  backdrop-filter: blur(6px);
+  position: sticky; top: 0; z-index: 10;
+  gap: 16px;
+}
+
+#logoWrap img {
+  height: clamp(36px,6vh,64px);
+  object-fit: contain;
+}
+#logoWrap.empty { display: none; }
+
+#headerCenter { flex: 1; text-align: center; }
+#eventNameLive {
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(1rem, 3.5vw, 2rem);
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-shadow: 0 0 24px rgba(241,196,15,0.4);
+  line-height: 1.1;
+}
+#eventTitleLive {
+  font-size: clamp(0.8rem, 2vw, 1.1rem);
+  color: var(--muted);
+  margin-top: 2px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+#liveBadge {
+  display: flex; align-items: center; gap: 7px;
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(0.75rem, 1.5vw, 1rem);
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--green);
+  flex-shrink: 0;
+}
+#liveDot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.7); }
+}
+#lastUpdate {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: right;
+  display: block;
+  margin-top: 3px;
+}
+
+/* ── CURRENT EVENT BANNER ── */
+#currentEventBanner {
+  background: linear-gradient(135deg, rgba(52,152,219,0.15), rgba(241,196,15,0.08));
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  padding: clamp(6px,1.5vh,14px) 16px;
+}
+#currentEventLabel {
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(1.1rem, 4vw, 2.2rem);
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 1px;
+}
+
+/* ── SCOREBOARD TABLE ── */
+#scoreboardWrap {
+  padding: clamp(8px,2vh,24px) clamp(8px,2vw,24px);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 clamp(3px,0.8vh,8px);
+}
+
+thead th {
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(0.7rem, 1.5vw, 0.9rem);
+  font-weight: 400;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 0 clamp(6px,1vw,16px) 4px;
+  border-bottom: 1px solid var(--border);
+}
+thead th:first-child { text-align: left; }
+
+tbody tr {
+  background: var(--card);
+  border-radius: 10px;
+  transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+}
+tbody tr.rank-1 {
+  background: linear-gradient(135deg, rgba(241,196,15,0.18), rgba(241,196,15,0.05));
+  box-shadow: 0 0 0 1px rgba(241,196,15,0.3), 0 4px 20px rgba(241,196,15,0.12);
+}
+tbody tr.rank-2 {
+  background: linear-gradient(135deg, rgba(189,195,199,0.14), rgba(189,195,199,0.03));
+  box-shadow: 0 0 0 1px rgba(189,195,199,0.2);
+}
+tbody tr.rank-3 {
+  background: linear-gradient(135deg, rgba(230,126,34,0.14), rgba(230,126,34,0.03));
+  box-shadow: 0 0 0 1px rgba(230,126,34,0.2);
+}
+tbody tr.updated {
+  animation: row-flash 1.2s ease-out;
+}
+@keyframes row-flash {
+  0%   { background: rgba(46,204,113,0.3); }
+  100% { background: var(--card); }
+}
+
+td {
+  padding: clamp(8px,1.8vh,18px) clamp(6px,1vw,16px);
+  vertical-align: middle;
+  font-size: clamp(0.9rem, 2vw, 1.15rem);
+  text-align: center;
+}
+td:first-child { text-align: left; border-radius: 10px 0 0 10px; }
+td:last-child  { border-radius: 0 10px 10px 0; }
+
+/* Miejsce */
+.td-rank {
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(1.2rem, 3vw, 2rem);
+  font-weight: 700;
+  width: clamp(36px,5vw,60px);
+  text-align: center !important;
+}
+.rank-1 .td-rank { color: var(--gold); text-shadow: 0 0 16px rgba(241,196,15,0.6); }
+.rank-2 .td-rank { color: var(--silver); }
+.rank-3 .td-rank { color: var(--bronze); }
+
+/* Zawodnik */
+.td-competitor { min-width: 0; }
+.competitor-row {
+  display: flex; align-items: center; gap: clamp(8px,1.5vw,16px);
+}
+.competitor-photo {
+  width:  clamp(36px,5vw,56px);
+  height: clamp(36px,5vw,56px);
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255,255,255,0.15);
+  flex-shrink: 0;
+  background: #1e2a3a;
+}
+.competitor-name {
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(1rem, 2.5vw, 1.5rem);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Wyniki historyczne (małe liczby) */
+.td-history {
+  font-size: clamp(0.72rem, 1.4vw, 0.9rem);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.hist-pts {
+  display: inline-block;
+  padding: 2px 6px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 4px;
+  margin: 0 2px;
+}
+
+/* Suma punktów */
+.td-total {
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(1.3rem, 3.5vw, 2.2rem);
+  font-weight: 700;
+  color: var(--gold);
+  white-space: nowrap;
+}
+.rank-1 .td-total { font-size: clamp(1.5rem, 4vw, 2.6rem); }
+
+/* ── BRAK DANYCH ── */
+#noData {
+  display: none;
+  text-align: center;
+  padding: 80px 20px;
+}
+#noData h2 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 2rem;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+#noData p { color: var(--muted); font-size: 1.1rem; }
+
+/* ── FOOTER ── */
+#footer {
+  text-align: center;
+  padding: 12px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+}
+
+/* ── OFFLINE BANNER ── */
+#offlineBanner {
+  display: none;
+  background: var(--red);
+  color: #fff;
+  text-align: center;
+  padding: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+}
+#offlineBanner.show { display: block; }
+
+/* ── RESPONSYWNOŚĆ ── */
+@media (max-width: 600px) {
+  thead th.hide-mobile,
+  td.hide-mobile { display: none; }
+  .competitor-photo { width: 34px; height: 34px; }
+}
+</style>
+</head>
+<body>
+
+<div id="offlineBanner">⚠ BRAK POŁĄCZENIA Z SĘDZIĄ — OCZEKIWANIE NA DANE…</div>
+
+<header id="header">
+  <div id="logoWrap" class="empty">
+    <img id="logoImg" src="" alt="Logo">
+  </div>
+  <div id="headerCenter">
+    <div id="eventNameLive">Zawody Strongman</div>
+    <div id="eventTitleLive">Oczekiwanie na dane…</div>
+  </div>
+  <div>
+    <div id="liveBadge"><div id="liveDot"></div> NA ŻYWO</div>
+    <small id="lastUpdate">—</small>
+  </div>
+</header>
+
+<div id="currentEventBanner">
+  <div id="currentEventLabel">—</div>
+</div>
+
+<main id="scoreboardWrap">
+  <div id="noData">
+    <h2>📡 Oczekiwanie na wyniki…</h2>
+    <p>Upewnij się, że aplikacja sędziego jest otwarta i że oba urządzenia<br>są w tej samej przeglądarce lub sieci lokalnej.</p>
+  </div>
+  <table id="scoreTable" style="display:none">
+    <thead>
+      <tr>
+        <th style="width:50px;text-align:center">#</th>
+        <th>Zawodnik</th>
+        <th class="hide-mobile">Wyniki</th>
+        <th>Suma</th>
+      </tr>
+    </thead>
+    <tbody id="scoreTbody"></tbody>
+  </table>
+</main>
+
+<footer id="footer">
+  Wyniki na żywo • odświeżane automatycznie •
+  <a href="javascript:void(0)" onclick="toggleFullscreen()" style="color:var(--gold);text-decoration:none;">⛶ Pełny ekran</a>
+</footer>
+
+<script>
+const CHANNEL_NAME = 'strongman-live';
+const LS_KEY       = 'strongman_live_state';
+const LS_PING_KEY  = 'strongman_live_ping';
+
+let lastTs         = 0;
+let offlineTimeout = null;
+let prevScores     = {};
+
+// ── BroadcastChannel listener ──
+try {
+  const ch = new BroadcastChannel(CHANNEL_NAME);
+  ch.onmessage = (e) => renderData(e.data);
+} catch (_) {}
+
+// ── localStorage polling (fallback + cross-device) ──
+setInterval(() => {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data.ts > lastTs) renderData(data);
+  } catch (_) {}
+}, 3000);
+
+// ── Offline detection ──
+function markOffline() {
+  document.getElementById('offlineBanner').classList.add('show');
+}
+function markOnline() {
+  document.getElementById('offlineBanner').classList.remove('show');
+  if (offlineTimeout) { clearTimeout(offlineTimeout); offlineTimeout = null; }
+}
+function resetOfflineTimer() {
+  if (offlineTimeout) clearTimeout(offlineTimeout);
+  offlineTimeout = setTimeout(markOffline, 15000); // 15s bez danych → offline
+  markOnline();
+}
+
+function renderData(data) {
+  if (!data || data.ts <= lastTs) return;
+  lastTs = data.ts;
+  resetOfflineTimer();
+
+  // Header
+  document.getElementById('eventNameLive').textContent = data.eventName || 'Zawody Strongman';
+  document.getElementById('currentEventLabel').textContent = `${data.eventTitle || ('Konkurencja ' + data.eventNum)}`;
+  document.getElementById('eventTitleLive').textContent = `Runda ${data.eventNum}`;
+  document.getElementById('lastUpdate').textContent = 'Aktualizacja: ' + new Date(data.ts).toLocaleTimeString('pl-PL');
+
+  // Logo
+  const logoWrap = document.getElementById('logoWrap');
+  const logoImg  = document.getElementById('logoImg');
+  if (data.logoData) {
+    logoImg.src = data.logoData;
+    logoWrap.classList.remove('empty');
+  } else {
+    logoWrap.classList.add('empty');
+  }
+
+  const competitors = data.competitors || [];
+  const scores      = data.scores      || {};
+  const history     = data.eventHistory || [];
+
+  if (competitors.length === 0) {
+    document.getElementById('noData').style.display = 'block';
+    document.getElementById('scoreTable').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('noData').style.display = 'none';
+  document.getElementById('scoreTable').style.display = 'table';
+
+  // Sortuj wg sumy punktów malejąco
+  const sorted = [...competitors].sort((a, b) => (scores[b] || 0) - (scores[a] || 0));
+
+  // Buduj ranking z ex-aequo
+  let rank = 1;
+  const ranked = sorted.map((name, idx) => {
+    if (idx > 0 && (scores[sorted[idx-1]] || 0) === (scores[name] || 0)) {
+      return { name, rank: ranked[idx-1]?.rank || rank };
+    }
+    const r = rank;
+    rank = idx + 2;
+    return { name, rank: r };
+  });
+
+  // Pobierz profile zawodników z historii (zdjęcia)
+  const profiles = {};
+  // Buduj mapę zdjęć z ostatnich wyników (zdjęcia nie są w state — pomijamy)
+
+  const tbody = document.getElementById('scoreTbody');
+  tbody.innerHTML = ranked.map(({ name, rank }) => {
+    const total    = (scores[name] || 0).toFixed(2);
+    const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
+    const medal    = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+    const wasUpdated = prevScores[name] !== undefined && prevScores[name] !== scores[name];
+
+    // Historia wyników (małe kółka z punktami)
+    const histHtml = history.map(ev => {
+      const res = ev.results?.find(r => r.name === name);
+      const pts = res ? parseFloat(res.points || 0).toFixed(1) : '—';
+      return `<span class="hist-pts" title="${ev.name}">${pts}</span>`;
+    }).join('');
+
+    return `<tr class="${rankClass}${wasUpdated ? ' updated' : ''}" data-name="${escHtml(name)}">
+      <td class="td-rank">${medal}</td>
+      <td class="td-competitor">
+        <div class="competitor-row">
+          <img class="competitor-photo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='16' r='8' fill='%23445566'/%3E%3Cellipse cx='20' cy='36' rx='14' ry='10' fill='%23445566'/%3E%3C/svg%3E" alt="">
+          <span class="competitor-name">${escHtml(name)}</span>
+        </div>
+      </td>
+      <td class="td-history hide-mobile">${histHtml}</td>
+      <td class="td-total">${total}</td>
+    </tr>`;
+  }).join('');
+
+  prevScores = { ...scores };
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen();
+  }
+}
+
+// Sprawdź dane od razu przy załadowaniu
+try {
+  const raw = localStorage.getItem(LS_KEY);
+  if (raw) renderData(JSON.parse(raw));
+} catch (_) {}
+
+// Offline timer start
+offlineTimeout = setTimeout(markOffline, 20000);
+</script>
+</body>
+</html>

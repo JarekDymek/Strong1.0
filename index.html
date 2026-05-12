@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+  <title>Strong22 — System Zarządzania Zawodami</title>
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext x='0' y='14'%3E🏋️%3C/text%3E%3C/svg%3E">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Exo+2:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- CSS główny -->
+  <link rel="stylesheet" href="css/main.css">
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="images/icon-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#FF4E00">
+
+  <style>
+    /* Loader overlay */
+    #appLoaderOverlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(13,27,42,0.85);
+      backdrop-filter: blur(8px);
+      z-index: 9999; align-items: center; justify-content: center;
+    }
+    #appLoaderOverlay .loader {
+      width: 52px; height: 52px; border-radius: 50%;
+      border: 6px solid rgba(255,255,255,0.15);
+      border-top-color: #FF4E00;
+      animation: spin 0.9s linear infinite;
+    }
+    #appLoaderOverlay .appLoaderMessage {
+      margin-top: 14px; font-size: 1rem; color: #fff; font-weight: 700;
+      font-family: 'Exo 2', sans-serif;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Prompter overlay (bez Tailwind) */
+    #fullscreen-prompter {
+      position: fixed; inset: 0; z-index: 9900;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px; opacity: 0; pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    #fullscreen-prompter.opacity-100 { opacity: 1; }
+    #fullscreen-prompter .prompter-bg {
+      position: absolute; inset: 0;
+      background: rgba(10,14,22,0.96);
+    }
+    #fullscreen-prompter .prompter-content { position: relative; width: 100%; max-width: 1100px; text-align: center; }
+    #prompter-text { color: #fff; font-size: clamp(2.2rem, 8vw, 5rem); font-weight: 900; line-height: 1.15; }
+    .prompter-close-btn {
+      position: absolute; top: 16px; right: 20px; z-index: 10;
+      background: none; border: none; color: rgba(255,255,255,0.5);
+      font-size: 2.6rem; cursor: pointer; width: auto; margin: 0; padding: 0; box-shadow: none;
+    }
+    .prompter-close-btn:hover { color: #FF4E00; }
+
+    /* save indicator + autosave label */
+    #saveIndicator { position: fixed; bottom: 14px; right: 14px; z-index: 9999; font-size: 22px; opacity: 0.7; }
+    #autosaveToggleLabel {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.82rem; font-weight: 700; font-family: 'Exo 2', sans-serif;
+      background: rgba(255,255,255,0.9); padding: 5px 12px;
+      border-radius: 20px; border: 1px solid rgba(30,58,95,0.15);
+      color: #1E3A5F; margin-left: 8px;
+    }
+    #autosaveToggleLabel input[type=checkbox] { width: 16px; height: 16px; accent-color: #FF4E00; }
+
+    /* Ukryty input pliku */
+    input[type=file][style*="display:none"],
+    input[type=file].hidden { display: none !important; }
+
+    /* Kompaktowy nagłówek z motywem i autosave */
+    .app-topbar {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+      padding: 6px 0 10px; position: relative; z-index: 1;
+    }
+    .app-topbar .spacer { flex: 1; }
+
+    /* iOS Install Modal */
+    #ios-install-modal {
+      display: none; position: fixed; left: 0; right: 0; bottom: 20px; z-index: 9999;
+      padding: 14px 16px; margin: 12px; background: #1E3A5F; color: #fff;
+      border-radius: 14px; max-width: 520px; margin-left: auto; margin-right: auto;
+      text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      font-family: 'Exo 2', sans-serif;
+    }
+    #ios-install-close {
+      margin-top: 10px; padding: 8px 20px; border-radius: 10px;
+      border: none; background: #FF4E00; color: #fff; font-weight: 800;
+      cursor: pointer; font-family: 'Exo 2', sans-serif;
+    }
+
+    /* Modal wyboru konkurencji — przyciski wewnętrzne */
+    #eventsSelectAllBtn, #eventsDeselectAllBtn {
+      width: auto; padding: 8px 16px; font-size: 0.85rem; margin: 0;
+    }
+    #eventsSelectAllBtn   { background: linear-gradient(135deg, #2563EB, #1D4ED8); }
+    #eventsDeselectAllBtn { background: linear-gradient(135deg, #64748B, #475569); }
+    #selectEventsConfirmBtn { background: linear-gradient(135deg, #FF4E00, #FF8C00); }
+    #selectEventsCancelBtn  { background: linear-gradient(135deg, #64748B, #475569); }
+    #saveAndDownloadBtn { background: linear-gradient(135deg, #00C9A7, #059669); }
+    #cancelExportBtn    { background: linear-gradient(135deg, #DC2626, #B91C1C); }
+
+    /* Panel sędziów — wewnętrzne style inline override */
+    #judgeManagementPanel { background: rgba(255,255,255,0.97) !important; }
+    #newJudgeForm { background: rgba(30,58,95,0.05); border-radius: 12px; padding: 14px; margin-bottom: 10px; border: 1px solid rgba(30,58,95,0.1); }
+    #newJudgeForm label { font-size: 0.82rem; font-weight: 800; color: #1E3A5F; margin-bottom: 4px; display: block; }
+    #judgeCompetitorCheckboxes { display: flex; flex-direction: column; gap: 5px; max-height: 160px; overflow-y: auto; margin-bottom: 10px; }
+    #judgeCompetitorCheckboxes label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; color: #1E3A5F; }
+    #judgeCompetitorCheckboxes input[type=checkbox] { width: 18px; height: 18px; accent-color: #FF4E00; }
+    #newJudgeForm .judge-form-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    #newJudgeForm .judge-form-btns button { margin: 0; padding: 10px; font-size: 0.9rem; }
+
+    /* competitorDetailPhoto */
+    #competitorDetailPhoto { max-width: 150px; height: 150px; object-fit: cover; border-radius: 50%; border: 4px solid #FF4E00; display: block; margin: 0 auto 12px; }
+    #competitorDetailMeta { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 0.9rem; margin: 10px 0; }
+    #competitorDetailMeta p { margin: 0; }
+    @media (max-width: 480px) { #competitorDetailMeta { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     LOADER OVERLAY
+═══════════════════════════════════════════════ -->
+<div id="appLoaderOverlay" aria-hidden="true" tabindex="-1">
+  <div style="text-align:center;">
+    <div class="loader"></div>
+    <div class="appLoaderMessage">Proszę czekać — trwa operacja…</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     GLOBAL NOTIFICATIONS & SAVE INDICATOR
+═══════════════════════════════════════════════ -->
+<div id="notification-bar" role="alert" aria-live="polite"></div>
+<div id="saveIndicator" aria-hidden="true">💾</div>
+
+<!-- ═══════════════════════════════════════════════
+     MODALE SYSTEMOWE
+═══════════════════════════════════════════════ -->
+<!-- Potwierdzenie -->
+<div id="confirmationModal" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <p id="modalText"></p>
+    <div class="modal-buttons">
+      <button id="confirmBtn">Tak, potwierdź</button>
+      <button id="cancelBtn" style="background:linear-gradient(135deg,#64748B,#475569);">Anuluj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Prompt -->
+<div id="promptModal" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <p id="promptText"></p>
+    <input type="text" id="promptInput" style="margin:10px 0 20px;">
+    <div class="modal-buttons">
+      <button id="promptConfirmBtn">OK</button>
+      <button id="promptCancelBtn" style="background:linear-gradient(135deg,#64748B,#475569);">Anuluj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Eksport HTML — edytowalny raport -->
+<div id="editExportModal" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal-box" style="max-width:90vw;width:800px;">
+    <h3>✏️ Edytuj Raport Przed Eksportem</h3>
+    <div id="editable-content" contenteditable="true"
+         style="border:1.5px solid rgba(30,58,95,0.15);padding:16px;min-height:40vh;
+                text-align:left;background:#fff;color:#1E3A5F;border-radius:10px;
+                font-size:0.9rem;line-height:1.6;margin-bottom:12px;overflow-y:auto;"></div>
+    <div class="modal-buttons">
+      <button id="saveAndDownloadBtn">💾 Zapisz i Pobierz</button>
+      <button id="cancelExportBtn">✕ Anuluj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Szczegóły zawodnika -->
+<div id="competitorDetailModal" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <h3 id="competitorDetailName" style="text-align:center;"></h3>
+    <img id="competitorDetailPhoto" src="" alt="Zdjęcie zawodnika">
+    <div id="competitorDetailMeta"></div>
+    <h4>Osiągnięcia / Notatki:</h4>
+    <p id="competitorDetailNotes" style="font-size:0.9rem;line-height:1.6;"></p>
+    <button id="competitorDetailCloseBtn">Zamknij</button>
+  </div>
+</div>
+
+<!-- Baza zawodników -->
+<div id="competitorDbPanel" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h2>💪 Baza Danych Zawodników</h2>
+    <form id="competitorForm">
+      <input type="hidden" id="competitorId">
+      <label for="competitorNameInput">Imię i nazwisko</label>
+      <input type="text" id="competitorNameInput" placeholder="Imię i nazwisko" required>
+      <div class="form-grid">
+        <div>
+          <label for="birthDateInput">Data urodzenia</label>
+          <input type="date" id="birthDateInput">
+        </div>
+        <div>
+          <label for="residenceInput">Miejscowość</label>
+          <input type="text" id="residenceInput" placeholder="np. Malbork">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div>
+          <label for="heightInput">Wzrost (cm)</label>
+          <input type="number" id="heightInput" placeholder="np. 185">
+        </div>
+        <div>
+          <label for="weightInput">Waga (kg)</label>
+          <input type="number" id="weightInput" placeholder="np. 140">
+        </div>
+      </div>
+      <label>Kategorie</label>
+      <div id="competitorCategories" class="categories-checkbox-group"></div>
+      <label for="competitorNotesInput">Osiągnięcia / Notatki</label>
+      <textarea id="competitorNotesInput" placeholder="Główne osiągnięcia, rekordy, informacje…"></textarea>
+      <label for="competitorPhotoInput">
+        Zdjęcie <small style="color:#64748B;font-weight:400;">(auto: JFIF 120×120)</small>
+      </label>
+      <input type="file" id="competitorPhotoInput" accept="image/*">
+      <div id="photoPreviewWrap" style="display:none;margin:8px 0 4px;">
+        <img id="photoPreviewImg" src="" alt="Podgląd"
+             style="width:80px;height:80px;object-fit:cover;border-radius:50%;
+                    border:3px solid #FF4E00;display:block;margin:0 auto 6px;">
+        <p style="text-align:center;font-size:0.78rem;color:#00C9A7;margin:0;font-weight:700;">✔ Gotowe</p>
+      </div>
+      <button type="submit" id="competitorFormBtn">➕ Dodaj Zawodnika</button>
+    </form>
+    <div id="competitorListContainer"></div>
+    <div id="dbManagementButtons">
+      <button id="exportDbBtn" style="background:linear-gradient(135deg,#2563EB,#1D4ED8);">⬆️ Eksportuj Bazę</button>
+      <button id="importDbTrigger" style="background:linear-gradient(135deg,#7C3AED,#5B21B6);">⬇️ Importuj Bazę</button>
+      <input type="file" id="importDbFile" accept=".json" style="display:none;">
+    </div>
+    <button id="closeDbPanelBtn" style="background:linear-gradient(135deg,#1E3A5F,#2D4A6A);margin-top:16px;">✕ Zamknij Panel</button>
+  </div>
+</div>
+
+<!-- Baza konkurencji -->
+<div id="eventDbPanel" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h2>🏆 Baza Danych Konkurencji</h2>
+    <form id="eventForm">
+      <input type="hidden" id="eventId">
+      <label for="eventNameDbInput">Nazwa konkurencji</label>
+      <input type="text" id="eventNameDbInput" placeholder="np. Spacer Farmera" required>
+      <label for="eventTypeDbInput">Zasada punktacji</label>
+      <select id="eventTypeDbInput" required>
+        <option value="high">⬆️ Więcej = Lepiej (np. powtórzenia)</option>
+        <option value="low">⬇️ Mniej = Lepiej (np. czas)</option>
+      </select>
+      <button type="submit" id="eventFormBtn">➕ Dodaj Konkurencję</button>
+    </form>
+    <div id="eventListContainer"></div>
+    <div id="eventDbManagementButtons">
+      <button id="exportEventsDbBtn" style="background:linear-gradient(135deg,#2563EB,#1D4ED8);">⬆️ Eksportuj Bazę</button>
+      <button id="importEventsDbTrigger" style="background:linear-gradient(135deg,#7C3AED,#5B21B6);">⬇️ Importuj Bazę</button>
+      <input type="file" id="importEventsDbFile" accept=".json" style="display:none;">
+    </div>
+    <button id="closeEventDbPanelBtn" style="background:linear-gradient(135deg,#1E3A5F,#2D4A6A);margin-top:16px;">✕ Zamknij</button>
+  </div>
+</div>
+
+<!-- Wybór i kolejność konkurencji -->
+<div id="selectEventsForCompetitionModal" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal-box" style="max-width:680px;width:96%;">
+    <h2 style="margin-bottom:6px;">📋 Wybierz Konkurencje</h2>
+    <p style="font-size:0.88rem;color:#64748B;margin-bottom:12px;line-height:1.6;">
+      Zaznacz konkurencje i ustaw ich kolejność przeciągając. Ostatnia automatycznie zostaje Finałem.
+    </p>
+    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px;flex-wrap:wrap;">
+      <button id="eventsSelectAllBtn">Zaznacz wszystkie</button>
+      <button id="eventsDeselectAllBtn">Odznacz wszystkie</button>
+    </div>
+    <div class="selection-summary" id="eventsSelectionSummary">
+      Wybrano: <strong id="eventsSelectedCount">0</strong> konkurencji
+    </div>
+    <div id="eventsSelectionList"></div>
+    <div class="modal-buttons" style="margin-top:14px;">
+      <button id="selectEventsConfirmBtn" style="width:auto;padding:13px 28px;margin:0;">✅ Zatwierdź i Startuj</button>
+      <button id="selectEventsCancelBtn"  style="width:auto;padding:13px 22px;margin:0;">✕ Anuluj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Szybki wybór z bazy (w trakcie zawodów) -->
+<div id="selectEventModal" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h3>📂 Wybierz konkurencję z bazy</h3>
+    <div id="selectEventList"></div>
+    <button id="selectEventCancelBtn" style="background:linear-gradient(135deg,#DC2626,#B91C1C);margin-top:8px;">✕ Anuluj</button>
+  </div>
+</div>
+
+<!-- Focus Mode (tryb skupienia) -->
+<div id="focusModeModal" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal-box focus-mode-box">
+    <button id="closeFocusBtn" class="focus-close-btn" aria-label="Zamknij tryb skupienia">×</button>
+    <div id="focusCompetitorInfo">
+      <img id="focusCompetitorPhoto" src="" alt="Zdjęcie zawodnika">
+      <h3 id="focusCompetitorName"></h3>
+    </div>
+    <input type="text" inputmode="decimal" id="focusResultInput" placeholder="Wpisz wynik…">
+    <div class="focus-nav-buttons">
+      <button id="focusPrevBtn">◀ Poprzedni</button>
+      <button id="focusConfirmNextBtn">✅ Zatwierdź i Następny</button>
+      <button id="focusNextBtn">Następny ▶</button>
+    </div>
+  </div>
+</div>
+
+<!-- Wybór wyniku ze stopera (międzyczasy) -->
+<div id="fsLapsModal" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h3>⏱️ Wybierz wynik do zapisu</h3>
+    <div id="fsLapsModalList"></div>
+    <button id="fsLapsCancelBtn" style="background:linear-gradient(135deg,#DC2626,#B91C1C);">Anuluj</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PEŁNOEKRANOWY STOPER
+═══════════════════════════════════════════════ -->
+<div id="fullscreenStopwatch" role="dialog" aria-modal="true" aria-label="Stoper">
+  <a href="#" id="fsExitBtn" aria-label="Zamknij stoper">×</a>
+  <div id="fsDisplayArea">
+    <div id="fsTime">00:00.00</div>
+    <img id="fsCompetitorPhoto" src="" alt="Zdjęcie zawodnika">
+    <div id="fsCompetitorName">Zawodnik</div>
+  </div>
+  <div id="fsControls">
+    <div id="fsModeSelection">
+      <button id="fsRepsBtn" class="fs-btn">🔢 Powtórzenia</button>
+      <button id="fsLapsBtn" class="fs-btn">🔔 Międzyczasy</button>
+    </div>
+    <button id="fsStartStopBtn" class="fs-btn">▶ Start</button>
+    <div id="fsPostStopControls">
+      <button id="fsResetBtn" class="fs-btn">🔄 Reset</button>
+      <button id="fsSaveBtn"  class="fs-btn">💾 Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PEŁNOEKRANOWY PROMPTER (SPIKER)
+═══════════════════════════════════════════════ -->
+<div id="fullscreen-prompter" aria-hidden="true">
+  <div class="prompter-bg"></div>
+  <div class="prompter-content">
+    <button id="prompter-close-btn-top" class="prompter-close-btn" aria-label="Zamknij prompter">×</button>
+    <p id="prompter-text"></p>
+    <button id="prompter-close-btn-bottom" class="prompter-close-btn"
+            style="position:static;display:block;margin:30px auto 0;font-size:1rem;width:auto;padding:12px 28px;
+                   background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.2);border-radius:12px;">
+      Zamknij
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PDF EXPORT (ukryty)
+═══════════════════════════════════════════════ -->
+<div id="pdf-export-container"></div>
+
+<!-- ═══════════════════════════════════════════════
+     iOS INSTALL MODAL
+═══════════════════════════════════════════════ -->
+<div id="ios-install-modal">
+  <div style="font-size:1rem;margin-bottom:8px;">
+    Aby zainstalować: naciśnij <strong>Udostępnij</strong> → <strong>Dodaj na ekran początkowy</strong>
+  </div>
+  <button id="ios-install-close">OK</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     TOP APP BAR
+═══════════════════════════════════════════════ -->
+<div class="app-topbar">
+  <div class="theme-selector theme-selector--compact">
+    <label for="themeSelector">Motyw:</label>
+    <select id="themeSelector">
+      <option value="light">☀️ Jasny</option>
+      <option value="dark">🌙 Ciemny</option>
+      <option value="contrast">⚡ Kontrast</option>
+    </select>
+  </div>
+  <label id="autosaveToggleLabel">
+    <input type="checkbox" id="autosaveToggle" checked> Autozapis
+  </label>
+  <div class="spacer"></div>
+  <button id="installPWAButton" class="logo-btn" style="display:none;width:auto;margin:0;padding:8px 16px;font-size:0.85rem;">
+    📲 Zainstaluj
+  </button>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     META ZAWODÓW
+═══════════════════════════════════════════════ -->
+<div class="event-meta-header">
+  <div class="event-meta-inputs">
+    <input type="text" id="eventNameInput"
+           placeholder="Nazwa zawodów"
+           value='PUCHAR POLSKI "TYBERIAN TEAM"'>
+    <input type="text" id="eventLocationInput" placeholder="Lokalizacja zawodów">
+  </div>
+  <div class="actions-grid" style="grid-template-columns:1fr 1fr;">
+    <button id="manageDbBtn">💪 Zarządzaj Zawodnikami</button>
+    <button id="manageEventsDbBtn">🏆 Zarządzaj Konkurencjami</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     HEADER — LOGO + TYTUŁ
+═══════════════════════════════════════════════ -->
+<header class="header">
+  <div class="logo-container">
+    <img id="logoImg"
+         src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB5PSIuOWVtIiBmb250LXNpemU9IjkwIj7wn4+X77iPPC90ZXh0Pjwvc3ZnPg=="
+         alt="Logo zawodów">
+    <div class="logo-actions">
+      <button id="selectLogoBtn" class="logo-btn">🖼 Wybierz Logo</button>
+    </div>
+    <input type="file" id="logoUpload" accept="image/*" style="display:none">
+  </div>
+  <h1>🏋️ STRONG22 — ZAWODY STRONGMAN</h1>
+  <p>System Zarządzania NextGen · Wersja Modułowa</p>
+</header>
+
+<!-- ═══════════════════════════════════════════════
+     EKRAN 1 — INTRO (wybór zawodników)
+═══════════════════════════════════════════════ -->
+<main id="intro" class="view">
+
+  <!-- ══ PRZEWODNIK SĘDZIEGO (CHRONOLOGICZNY) ══ -->
+  <div id="judgeGuidePanel">
+    <div id="judgeGuideHeader" onclick="toggleJudgeGuide(this)">
+      <span class="guide-icon">🗺️</span>
+      <h3>PRZEWODNIK SĘDZIEGO — krok po kroku</h3>
+      <span class="guide-chevron">▼</span>
+    </div>
+    <div id="judgeGuideBody">
+      <div class="guide-steps-list">
+
+        <!-- KROK 1 -->
+        <div class="guide-step-row" data-step="1">
+          <div class="guide-step-line">
+            <div class="guide-step-circle gs-done">✓</div>
+            <div class="guide-connector gc-done"></div>
+          </div>
+          <div class="guide-step-content">
+            <div class="guide-step-title">1 · Dane zawodów</div>
+            <div class="guide-step-desc">Wpisz nazwę i lokalizację zawodów w polach u góry strony. Dodaj logo organizatora klikając "Wybierz Logo".</div>
+            <div class="guide-done-badge">✔ Gotowe — uzupełnij pola powyżej</div>
+          </div>
+        </div>
+
+        <!-- KROK 2 (active) -->
+        <div class="guide-step-row" data-step="2">
+          <div class="guide-step-line">
+            <div class="guide-step-circle gs-active">2</div>
+            <div class="guide-connector gc-active"></div>
+          </div>
+          <div class="guide-step-content">
+            <div class="guide-step-title">2 · Wybierz zawodników</div>
+            <div class="guide-step-desc">
+              Filtruj według kategorii wagowej, a następnie zaznacz checkboxy przy każdym uczestniczącym zawodniku.
+              Licznik "Wybrano: X" pokazuje aktualną selekcję.
+            </div>
+            <div class="guide-step-tip">👆 Użyj filtrów powyżej listy — checkboxy zachowują zaznaczenie po zmianie filtra</div>
+          </div>
+        </div>
+
+        <!-- KROK 3 -->
+        <div class="guide-step-row" data-step="3">
+          <div class="guide-step-line">
+            <div class="guide-step-circle gs-todo">3</div>
+            <div class="guide-connector gc-todo"></div>
+          </div>
+          <div class="guide-step-content">
+            <div class="guide-step-title">3 · Bazy danych (opcjonalnie)</div>
+            <div class="guide-step-desc">
+              Kliknij "Zarządzaj Zawodnikami" lub "Zarządzaj Konkurencjami" aby dodać/edytować rekordy.
+              Możesz zaimportować/eksportować bazę do pliku JSON.
+            </div>
+          </div>
+        </div>
+
+        <!-- KROK 4 -->
+        <div class="guide-step-row" data-step="4">
+          <div class="guide-step-line">
+            <div class="guide-step-circle gs-todo">4</div>
+            <div class="guide-connector gc-todo"></div>
+          </div>
+          <div class="guide-step-content">
+            <div class="guide-step-title">4 · Zapisz punkt kontrolny</div>
+            <div class="guide-step-desc">
+              Przed startem zawodów kliknij "Zapisz Punkt Kontrolny" — to zabezpieczenie na wypadek awarii urządzenia.
+              Zapisz też plik JSON jako kopię zewnętrzną.
+            </div>
+            <div class="guide-step-tip">🛡️ Zalecane przed każdymi zawodami!</div>
+          </div>
+        </div>
+
+        <!-- KROK 5 -->
+        <div class="guide-step-row" data-step="5">
+          <div class="guide-step-line">
+            <div class="guide-step-circle gs-todo">5</div>
+            <div class="guide-connector gc-todo"></div>
+          </div>
+          <div class="guide-step-content">
+            <div class="guide-step-title">5 · Wybierz konkurencje i startuj</div>
+            <div class="guide-step-desc">
+              Kliknij "📋 Wybierz Konkurencje i Startuj" — pojawi się lista konkurencji do zaznaczenia i ułożenia w kolejności.
+              Ostatnia na liście automatycznie staje się <strong>Finałem</strong>.
+            </div>
+            <div class="guide-step-tip">💡 Kolejność możesz zmienić przeciągając wiersze za uchwyt ⠿</div>
+          </div>
+        </div>
+
+        <!-- KROK 6 -->
+        <div class="guide-step-row" data-step="6">
+          <div class="guide-step-line">
+            <div class="guide-step-circle gs-todo">6</div>
+            <div class="guide-connector gc-todo"></div>
+          </div>
+          <div class="guide-step-content">
+            <div class="guide-step-title">6 · Koło Fortuny — losowanie kolejności</div>
+            <div class="guide-step-desc">
+              Po zatwierdzeniu konkurencji otworzy się Koło Fortuny. Kliknij "🎰 Losuj" tyle razy ile jest zawodników
+              — każde obrócenie wyznacza kolejnego startera. Po wylosowaniu wszystkich kliknij "▶ START ZAWODÓW".
+            </div>
+          </div>
+        </div>
+
+        <!-- KROK 7 -->
+        <div class="guide-step-row" data-step="7">
+          <div class="guide-step-line">
+            <div class="guide-step-circle gs-todo">7</div>
+            <div class="guide-connector gc-todo"></div>
+          </div>
+          <div class="guide-step-content">
+            <div class="guide-step-title">7 · Wpisywanie wyników i punkty</div>
+            <div class="guide-step-desc">
+              Dla każdego zawodnika: wpisz wynik w polu lub kliknij zdjęcie aby otworzyć stoper.
+              Stuknięcie w pole wyniku otwiera <strong>Tryb Skupienia</strong> (pełny ekran, jeden zawodnik na raz).
+              Po wpisaniu wszystkich kliknij <strong>"Przyznaj Punkty"</strong> — system automatycznie wylicza miejsca i punkty.
+            </div>
+            <div class="guide-step-tip">⌨️ Formaty: 22.35 (sekundy) | 1:22.55 (min:sek) | 0 lub puste = DNF | 018.5 = DNF + dystans</div>
+          </div>
+        </div>
+
+        <!-- KROK 8 -->
+        <div class="guide-step-row" data-step="8">
+          <div class="guide-step-line">
+            <div class="guide-step-circle gs-todo">8</div>
+            <div class="guide-connector gc-todo"></div>
+          </div>
+          <div class="guide-step-content">
+            <div class="guide-step-title">8 · Następna konkurencja / Finał</div>
+            <div class="guide-step-desc">
+              Kliknij <strong>"Następna Konkurencja"</strong> — tabela czyści się i przechodzi do kolejnej.
+              Gdy zostanie ostatnia: kliknij <strong>"Konkurencja Finałowa"</strong> — do finału zakwalifikuje się Top 5 (lub inna liczba wg ustawień),
+              kolejność startowa jest odwrócona (lider startuje ostatni).
+            </div>
+          </div>
+        </div>
+
+        <!-- KROK 9 -->
+        <div class="guide-step-row" data-step="9">
+          <div class="guide-step-line">
+            <div class="guide-step-circle gs-todo">9</div>
+            <div class="guide-connector gc-todo"></div>
+          </div>
+          <div class="guide-step-content">
+            <div class="guide-step-title">9 · Podsumowanie i eksport wyników</div>
+            <div class="guide-step-desc">
+              Kliknij <strong>"Podsumowanie →"</strong> aby zobaczyć pełną klasyfikację, podium i historię wszystkich konkurencji.
+              Możesz wyeksportować wyniki jako plik HTML (czytelny w przeglądarce, gotowy do druku)
+              lub otworzyć Telebim na żywo na innym ekranie.
+            </div>
+          </div>
+        </div>
+
+        <!-- KROK 10 -->
+        <div class="guide-step-row" data-step="10">
+          <div class="guide-step-line">
+            <div class="guide-step-circle gs-todo">10</div>
+            <div style="height:0;"></div>
+          </div>
+          <div class="guide-step-content" style="padding-bottom:4px;">
+            <div class="guide-step-title">10 · Sędziowie pomocniczy (opcjonalnie)</div>
+            <div class="guide-step-desc">
+              W panelu "👥 Sędziowie Pomocniczy" (widocznym w trakcie zawodów) kliknij "➕ Dodaj Sędziego" —
+              wygeneruje się unikalny link, który otworzysz na telefonie sędziego. Wpisane przez niego wyniki
+              pojawią się automatycznie w tabeli głównej.
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /guide-steps-list -->
+    </div><!-- /judgeGuideBody -->
+  </div><!-- /judgeGuidePanel -->
+
+  <!-- ══ WYBÓR ZAWODNIKÓW ══ -->
+  <div class="intro-container">
+    <h2>👥 Wybierz Zawodników</h2>
+    <p style="color:#64748B;font-size:0.9rem;margin-bottom:14px;">
+      Filtruj według kategorii. Zaznaczenia zachowują się między filtrami.
+    </p>
+    <div class="filter-buttons" id="categoryFilters">
+      <button class="filter-btn active" data-filter="all">Wszyscy</button>
+    </div>
+    <div id="competitorSelectionList">
+      <p style="text-align:center;padding:20px;color:#64748B;">Ładowanie zawodników z bazy danych…</p>
+    </div>
+    <div id="selectionCounter">Wybrano: 0</div>
+    <div id="competitorSearchContainer">
+      <div id="competitorSearchResults"></div>
+    </div>
+
+    <!-- ══ ZABEZPIECZENIA ══ -->
+    <div class="security-panel">
+      <h3>🛡️ Zabezpieczenia Przed Startem</h3>
+      <p style="font-size:0.82rem;color:#64748B;margin-bottom:10px;line-height:1.6;">
+        Zapisuj punkty kontrolne regularnie. Możesz je wczytać po awarii lub przypadkowym resecie.
+      </p>
+      <div class="button-group">
+        <button id="saveCheckpointBtn_intro">💾 Zapisz Punkt Kontrolny</button>
+        <button id="showCheckpointsBtn_intro">📂 Wczytaj Punkt Kontrolny</button>
+        <button id="exportStateBtn_intro">⬆️ Eksportuj Stan do Pliku</button>
+        <button id="importStateBtn_intro">⬇️ Importuj Stan z Pliku</button>
+      </div>
+      <input type="file" id="importFile_intro" accept=".json" style="display:none;">
+      <div id="checkpointListContainer_intro">
+        <div id="checkpointList_intro"></div>
+      </div>
+    </div>
+
+    <button id="selectEventsForCompetitionBtn">
+      📋 Wybierz Konkurencje i Startuj
+    </button>
+  </div>
+
+</main>
+
+<!-- ═══════════════════════════════════════════════
+     EKRAN 3 — GŁÓWNE ZAWODY (mainContent)
+═══════════════════════════════════════════════ -->
+<main id="mainContent" class="view" style="display:none;">
+
+  <!-- WSKAŹNIK POSTĘPU ZAWODÓW -->
+  <div id="competitionProgressBar">
+    <div class="progress-label">
+      <span>Konkurencja <span class="prog-current" id="progCurrentNum">1</span> z <span id="progTotalNum">?</span></span>
+      <span class="prog-name" id="progEventName">—</span>
+    </div>
+    <div class="prog-track">
+      <div class="prog-fill" id="progFill" style="width:0%;"></div>
+    </div>
+    <div class="prog-dots" id="progDots"></div>
+  </div>
+
+  <!-- BELKA 3-CZĘŚCIOWA: [⬇Mniej] [📂 Nazwa] [⬆Więcej] -->
+  <div class="event-bar">
+    <button id="lowTypeBtn"  class="type-btn type-btn--low"  data-type="low">⬇️ Mniej<br>=Lepiej</button>
+    <div class="event-bar__center">
+      <div id="eventTitle" contenteditable="true">Konkurencja 1</div>
+      <button id="selectEventFromDbBtn" title="Wybierz konkurencję z bazy">📂 Baza</button>
+    </div>
+    <button id="highTypeBtn" class="type-btn type-btn--high active" data-type="high">⬆️ Więcej<br>=Lepiej</button>
+  </div>
+
+  <!-- FORMAT PODPOWIEDŹ -->
+  <div id="resultFormatHint">
+    ⌨️ Formaty: <strong>22.35</strong> (sek) · <strong>1:22.55</strong> (min:sek) · <strong>0</strong> lub puste = DNF · <strong>018.5</strong> = DNF+dystans
+  </div>
+
+  <!-- TIMELINE HINT — podpowiedź co nacisnąć dalej -->
+  <div id="timelineHint" class="timeline-hint" aria-live="polite"></div>
+
+  <!-- AKCJE -->
+  <div class="actions-grid">
+    <button id="nextEventBtn">▶ Następna Konkurencja</button>
+    <button id="finalEventBtn">🏆 Konkurencja Finałowa</button>
+    <button id="calculatePointsBtn">✅ Przyznaj Punkty</button>
+    <button id="showFinalSummaryBtn">📊 Podsumowanie →</button>
+  </div>
+
+  <!-- ROZWIŃ TABELĘ -->
+  <button id="toggleTableWidthBtn">⬅️➡️ Rozwiń Tabelę</button>
+
+  <!-- TABELA WYNIKÓW -->
+  <div class="table-wrapper">
+    <table id="resultsTable">
+      <thead>
+        <tr>
+          <th>Zawodnik</th>
+          <th>Wynik</th>
+          <th>Miejsce</th>
+          <th>Pkt.</th>
+          <th>Suma</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- COFNIJ / PONÓW -->
+  <div id="undo-redo-container">
+    <button id="undoBtn" disabled>↩ Cofnij</button>
+    <button id="redoBtn" disabled>↪ Ponów</button>
+  </div>
+
+  <!-- TELEBIM -->
+  <button id="openLiveDisplayBtn">📺 Otwórz Telebim na Żywo</button>
+
+</main>
+
+<!-- ═══════════════════════════════════════════════
+     PANEL SĘDZIÓW POMOCNICZYCH
+═══════════════════════════════════════════════ -->
+<div id="judgeManagementPanel" style="display:none;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;cursor:pointer;"
+       id="judgePanelToggle">
+    <h3 style="margin:0;font-size:1rem;">👥 Sędziowie Pomocniczy</h3>
+    <span id="judgePanelChevron" style="font-size:1.1rem;transition:transform 0.2s;">▼</span>
+  </div>
+  <div id="judgePanelBody" style="display:none;">
+    <p style="font-size:0.82rem;color:#64748B;margin-bottom:10px;line-height:1.6;">
+      Dodaj sędziego — dostanie link do otwarcia na swoim telefonie i będzie wpisywał wyniki.<br>
+      Pola Wynik w tabeli wypełnią się automatycznie.
+    </p>
+    <div id="judgeModeIndicator">
+      <span id="judgeModeIcon">⏳</span>
+      <span id="judgeModeText">Sprawdzam połączenie…</span>
+    </div>
+    <div id="judgeList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+    <div id="newJudgeForm" style="display:none;">
+      <label>Opis / etykieta sędziego</label>
+      <input id="judgeLabelInput" type="text" placeholder='np. "Sędzia 1 — Stoper"' style="margin-bottom:10px;">
+      <label>Przydziel zawodników:</label>
+      <div id="judgeCompetitorCheckboxes"></div>
+      <div class="judge-form-btns">
+        <button id="confirmCreateJudgeBtn">✓ Utwórz i wyślij link</button>
+        <button id="cancelCreateJudgeBtn">✕ Anuluj</button>
+      </div>
+    </div>
+    <button id="createJudgeTokenBtn">➕ Dodaj Sędziego Pomocniczego</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     EKRAN 2 — LOSOWANIE (koło fortuny, full-screen)
+═══════════════════════════════════════════════ -->
+<div id="drawView">
+  <div id="drawView-inner">
+    <div id="drawView-header">
+      <div id="drawView-title">🎰 Losowanie Kolejności Startu</div>
+      <div id="drawView-subtitle" class="draw-subtitle-el"></div>
+    </div>
+    <div id="drawView-body">
+      <div id="wheelWrap">
+        <canvas id="wheelCanvas" width="420" height="420"></canvas>
+      </div>
+      <div id="drawSidePanel">
+        <div id="drawOrderTitle">Kolejność startu</div>
+        <div id="drawOrderList"></div>
+      </div>
+    </div>
+    <div id="drawView-actions">
+      <button id="drawBackBtn"  class="draw-btn draw-btn-back">← Wróć</button>
+      <button id="drawSpinBtn"  class="draw-btn draw-btn-spin">🎰 Losuj kolejność</button>
+      <button id="drawStartBtn" class="draw-btn draw-btn-start" disabled>▶ START ZAWODÓW</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     EKRAN 4 — PODSUMOWANIE
+═══════════════════════════════════════════════ -->
+<main id="summaryView" class="view" style="display:none;">
+  <div class="summary-header">
+    <button id="summaryBackBtn" class="summary-back-btn">← Wróć do zawodów</button>
+    <h2 id="summaryEventName">Podsumowanie</h2>
+  </div>
+
+  <div class="panel">
+    <h3>📊 Historia Konkurencji i Edycja Wyników</h3>
+    <div id="summaryHistoryPanel" style="display:none;">
+      <p id="summaryHistoryEmpty" style="text-align:center;color:#64748B;padding:16px;">
+        Brak zakończonych konkurencji.
+      </p>
+      <div id="summaryEventList"></div>
+      <div class="panel" id="summaryEventDetails" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="finalStandingsPanel" style="display:none;">
+    <h3>🏆 Klasyfikacja Końcowa</h3>
+    <div id="finalStandingsContent"></div>
+  </div>
+
+  <div class="panel" id="fullSummaryPanel" style="display:none;">
+    <h3>📋 Pełne Podsumowanie Zawodów</h3>
+    <div id="fullSummaryContent"></div>
+  </div>
+
+  <div class="summary-actions-grid">
+    <button id="showResultsBtn">📝 Historia i Edycja</button>
+    <button id="exportHtmlBtn">📄 Eksportuj HTML</button>
+    <button id="openLiveDisplayBtn2">📺 Otwórz Telebim</button>
+    <button id="resetCompetitionBtn">🔄 Resetuj Zawody</button>
+  </div>
+
+  <div class="panel security-panel">
+    <h3>🛡️ Zabezpieczenia i Kopie Zapasowe</h3>
+    <div class="button-group">
+      <button id="saveCheckpointBtn">💾 Zapisz Punkt Kontrolny</button>
+      <button id="showCheckpointsBtn">📂 Wczytaj Punkt Kontrolny</button>
+      <button id="exportStateBtn_main">⬆️ Eksportuj Stan</button>
+      <button id="importStateBtn_main">⬇️ Importuj Stan</button>
+    </div>
+    <input type="file" id="importFile_main" accept=".json" style="display:none;">
+    <div id="checkpointListContainer">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h4 style="margin:0;">Dostępne punkty kontrolne:</h4>
+        <strong id="storageUsage" style="color:#64748B;font-size:0.85rem;"></strong>
+      </div>
+      <div id="checkpointList"></div>
+    </div>
+  </div>
+</main>
+
+<!-- ═══════════════════════════════════════════════
+     SKRYPTY
+═══════════════════════════════════════════════ -->
+<script type="module" src="js/main.js"></script>
+<script type="module" src="js/pwa.js"></script>
+<script type="module" src="js/install.js"></script>
+
+<!-- Service Worker -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js', { scope: './' })
+        .then(r => console.log('SW registered:', r.scope))
+        .catch(e => console.log('SW failed:', e));
+    });
+  }
+</script>
+
+<!-- Przewodnik sędziego — prosty toggle -->
+<script>
+  function toggleJudgeGuide(header) {
+    header.classList.toggle('open');
+    const body = document.getElementById('judgeGuideBody');
+    if (body) body.classList.toggle('hidden');
+  }
+
+  // Automatycznie otwórz przewodnik przy pierwszym uruchomieniu
+  document.addEventListener('DOMContentLoaded', () => {
+    const header = document.getElementById('judgeGuideHeader');
+    if (header && !localStorage.getItem('s22_guide_collapsed')) {
+      header.classList.add('open');
+    }
+    // Zamknij i zapamiętaj po kliknięciu
+    if (header) {
+      header.addEventListener('click', () => {
+        localStorage.setItem('s22_guide_collapsed', header.classList.contains('open') ? '' : '1');
+      });
+    }
+  });
+</script>
+
+<!-- iOS install close -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const closeBtn = document.getElementById('ios-install-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        const modal = document.getElementById('ios-install-modal');
+        if (modal) modal.style.display = 'none';
+      });
+    }
+  });
+</script>
+
+</body>
+</html>

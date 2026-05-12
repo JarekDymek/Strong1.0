@@ -1,0 +1,11 @@
+Strong22 - instrukcja
+
+1. Rozpakuj Strong22.zip.
+2. Wejdz do folderu Strong22.
+3. Kliknij dwa razy START.bat.
+4. Otworzy sie przegladarka z aplikacja.
+
+Wazne:
+- Nie zamykaj czarnego okna START.bat podczas pracy z aplikacja.
+- Po zakonczeniu pracy mozesz je zamknac.
+- Aplikacje mozna tez wrzucic na hosting statyczny, np. GitHub Pages.
