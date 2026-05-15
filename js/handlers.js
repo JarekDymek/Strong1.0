@@ -54,6 +54,19 @@ function fanfareSignal() {
   } catch(e){}
 }
 
+// Dodano wywołanie strażnika przed obsługą przycisku "Następna konkurencja"
+const nextEventButton = document.getElementById('nextEventBtn');
+if (nextEventButton) {
+    nextEventButton.addEventListener('click', async (event) => {
+        const canProceed = await Competition.guardNextEventAfterFinal();
+        if (!canProceed) {
+            event.preventDefault();
+            return;
+        }
+        // ...istniejąca logika obsługi przycisku "Następna konkurencja"...
+    });
+}
+
 // ... (wszystkie inne funkcje handle... pozostają bez zmian) ...
 
 // --- NOWA, NIEZAWODNA WERSJA EKSPORTU DO HTML Z EDYCJĄ ---
@@ -328,7 +341,18 @@ export function handleStartCompetition(refreshFullUICallback) {
     return true; // Sygnał do odświeżenia UI
 }
 
-export function handleEventTypeChange(type) {
+export async function handleEventTypeChange(type) {
+    if (type === State.getEventType()) return;
+    const currentEventNum = State.getEventNumber();
+    const alreadyDone = State.getEventHistory().some(e => Number(e.nr) === Number(currentEventNum));
+    const hasEnteredResults = Array.from(document.querySelectorAll('#resultsTable .resultInput'))
+        .some(input => input.value.trim() !== '');
+
+    if ((alreadyDone || hasEnteredResults) && !await UI.showConfirmation(
+        'Zmiana zasady punktacji moze zmienic miejsca i punkty dla tej konkurencji.\n\n' +
+        'Kontynuowac?'
+    )) return;
+
     History.saveToUndoHistory(State.getState());
     State.setEventType(type);
     UI.updateEventTypeButtons(type);
@@ -509,7 +533,13 @@ export function handleRedo() {
     return false;
 }
 
-export function handleSaveAndRecalculate(eventId) {
+export async function handleSaveAndRecalculate(eventId) {
+    if (!await UI.showConfirmation(
+        `Zmieniasz zatwierdzone wyniki konkurencji ${eventId}.\n` +
+        'System przeliczy cala klasyfikacje.\n\n' +
+        'Zapisac zmiany i przeliczyc punkty?'
+    )) return false;
+
     History.saveToUndoHistory(State.getState());
     const editedInputs = document.querySelectorAll(`#editTable_${eventId} .editable-result`);
     const newResults = Array.from(editedInputs).map(input => ({ name: input.dataset.name, result: input.value }));
@@ -531,6 +561,7 @@ export function handleStopwatchSave(competitorName, result, eventType) {
         History.saveToUndoHistory(State.getState());
         Persistence.triggerAutoSaveWithContext(`Po zapisie stopera – ${competitorName}`);
         UI.showNotification(`Zapisano wynik dla ${competitorName}.`, "success");
+        document.dispatchEvent(new CustomEvent('strongman:result-updated'));
     }
 }
 

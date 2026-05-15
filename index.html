@@ -413,7 +413,15 @@
 <!-- ═══════════════════════════════════════════════
      META ZAWODÓW
 ═══════════════════════════════════════════════ -->
-<div class="event-meta-header">
+<section class="event-meta-header collapsible-panel" data-collapsible-key="event-meta" data-collapsed-default="true">
+  <button type="button" class="collapsible-trigger" aria-expanded="true">
+    <span class="collapsible-title">
+      <strong>Dane zawodow i bazy</strong>
+      <small>Uzywane przed startem lub przy zmianach organizacyjnych.</small>
+    </span>
+    <span class="collapsible-chevron">▼</span>
+  </button>
+  <div class="collapsible-body">
   <div class="event-meta-inputs">
     <input type="text" id="eventNameInput"
            placeholder="Nazwa zawodów"
@@ -429,6 +437,7 @@
 <!-- ═══════════════════════════════════════════════
      HEADER — LOGO + TYTUŁ
 ═══════════════════════════════════════════════ -->
+</section>
 <header class="header">
   <div class="logo-container">
     <img id="logoImg"
@@ -636,7 +645,15 @@
     </div>
 
     <!-- ══ ZABEZPIECZENIA ══ -->
-    <div class="security-panel">
+    <div class="security-panel collapsible-panel" data-collapsible-key="intro-security" data-collapsed-default="true">
+      <button type="button" class="collapsible-trigger" aria-expanded="false">
+        <span class="collapsible-title">
+          <strong>Zabezpieczenia przed startem</strong>
+          <small>Punkty kontrolne i import/eksport stanu.</small>
+        </span>
+        <span class="collapsible-chevron">▼</span>
+      </button>
+      <div class="collapsible-body">
       <h3>🛡️ Zabezpieczenia Przed Startem</h3>
       <p style="font-size:0.82rem;color:#64748B;margin-bottom:10px;line-height:1.6;">
         Zapisuj punkty kontrolne regularnie. Możesz je wczytać po awarii lub przypadkowym resecie.
@@ -650,6 +667,7 @@
       <input type="file" id="importFile_intro" accept=".json" style="display:none;">
       <div id="checkpointListContainer_intro">
         <div id="checkpointList_intro"></div>
+      </div>
       </div>
     </div>
 
@@ -688,15 +706,24 @@
   </div>
 
   <!-- FORMAT PODPOWIEDŹ -->
-  <div id="resultFormatHint">
+  <section id="resultHelpPanel" class="collapsible-panel" data-collapsible-key="result-help" data-collapsed-default="true">
+    <button type="button" class="collapsible-trigger" aria-expanded="false">
+      <span class="collapsible-title">
+        <strong>Formaty wynikow</strong>
+        <small>Otworz tylko gdy trzeba sprawdzic zapis czasu lub DNF.</small>
+      </span>
+      <span class="collapsible-chevron">▼</span>
+    </button>
+  <div id="resultFormatHint" class="collapsible-body">
     ⌨️ Formaty: <strong>22.35</strong> (sek) · <strong>1:22.55</strong> (min:sek) · <strong>0</strong> lub puste = DNF · <strong>018.5</strong> = DNF+dystans
   </div>
 
   <!-- TIMELINE HINT — podpowiedź co nacisnąć dalej -->
-  <div id="timelineHint" class="timeline-hint" aria-live="polite"></div>
+  </section>
+  <div id="timelineHint" class="timeline-hint workflow-status" aria-live="polite"></div>
 
   <!-- AKCJE -->
-  <div class="actions-grid">
+  <div class="actions-grid workflow-actions">
     <button id="nextEventBtn">▶ Następna Konkurencja</button>
     <button id="finalEventBtn">🏆 Konkurencja Finałowa</button>
     <button id="calculatePointsBtn">✅ Przyznaj Punkty</button>
@@ -829,7 +856,15 @@
     <button id="resetCompetitionBtn">🔄 Resetuj Zawody</button>
   </div>
 
-  <div class="panel security-panel">
+  <div class="panel security-panel collapsible-panel" data-collapsible-key="summary-security" data-collapsed-default="true">
+    <button type="button" class="collapsible-trigger" aria-expanded="false">
+      <span class="collapsible-title">
+        <strong>Zabezpieczenia i kopie zapasowe</strong>
+        <small>Uzywane sporadycznie: checkpointy, import i eksport.</small>
+      </span>
+      <span class="collapsible-chevron">▼</span>
+    </button>
+    <div class="collapsible-body">
     <h3>🛡️ Zabezpieczenia i Kopie Zapasowe</h3>
     <div class="button-group">
       <button id="saveCheckpointBtn">💾 Zapisz Punkt Kontrolny</button>
@@ -844,6 +879,7 @@
         <strong id="storageUsage" style="color:#64748B;font-size:0.85rem;"></strong>
       </div>
       <div id="checkpointList"></div>
+    </div>
     </div>
   </div>
 </main>

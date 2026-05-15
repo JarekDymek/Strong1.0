@@ -303,6 +303,10 @@ button:hover:not(:disabled) { transform:translateY(-2px); box-shadow:var(--shado
 button:active:not(:disabled) { transform:translateY(1px) scale(0.98); }
 button:disabled { background:#C0CDD8 !important; color:#6A8A9A !important; cursor:not-allowed; box-shadow:none; }
 body.dark button:disabled { background:#1A2A3A !important; color:#3A5A7A !important; }
+button:focus-visible {
+  outline: 3px solid rgba(245,158,0,0.75);
+  outline-offset: 3px;
+}
 
 /* ══════════════════════════════════════════════
    KOLORY POSZCZEGÓLNYCH PRZYCISKÓW
@@ -354,6 +358,7 @@ body.dark button:disabled { background:#1A2A3A !important; color:#3A5A7A !import
   margin: 12px 0;
 }
 .actions-grid button { margin:0; font-size:0.9rem; padding:14px 8px; min-height:52px; }
+.workflow-actions { align-items:stretch; }
 #undo-redo-container { display:grid; gap:8px; grid-template-columns:1fr 1fr; margin:12px 0; }
 #undo-redo-container button { margin:0; padding:11px; font-size:0.9rem; }
 #export-button-group { display:grid; gap:8px; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); margin:12px 0; }
@@ -614,6 +619,78 @@ body.dark .result-dist .resultInput { background:rgba(251,191,36,0.12) !importan
 .security-panel .button-group { display:grid; gap:8px; grid-template-columns:1fr 1fr; margin:10px 0; }
 .security-panel .button-group button { margin:0; font-size:0.88rem; padding:12px 8px; min-height:48px; }
 
+/* Unified collapsible panels */
+.collapsible-panel {
+  overflow: hidden;
+}
+.collapsible-trigger {
+  width: 100%;
+  min-height: 52px;
+  margin: 0;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: var(--r-sm);
+  background: var(--bg-card2);
+  color: var(--text-main);
+  border: 1.5px solid var(--border);
+  box-shadow: none;
+  text-align: left;
+}
+.collapsible-trigger:hover:not(:disabled) {
+  transform: none;
+  box-shadow: var(--shadow-sm);
+  filter: none;
+  border-color: var(--border-hi);
+}
+.collapsible-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.collapsible-title strong {
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+.collapsible-title small {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.collapsible-chevron {
+  flex: 0 0 auto;
+  color: var(--fire-btn);
+  font-size: 1rem;
+  transition: transform var(--t-normal);
+}
+.collapsible-body {
+  max-height: 1500px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height var(--t-slow) ease, opacity var(--t-normal) ease, padding var(--t-normal) ease, margin var(--t-normal) ease;
+}
+.collapsible-panel.is-collapsed .collapsible-body {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  pointer-events: none;
+}
+.collapsible-panel.is-collapsed .collapsible-chevron {
+  transform: rotate(-90deg);
+}
+.event-meta-header.collapsible-panel .collapsible-body,
+.security-panel.collapsible-panel .collapsible-body,
+#resultHelpPanel .collapsible-body {
+  padding-top: 10px;
+}
+
 /* ══════════════════════════════════════════════
    FOCUS MODE (Tryb skupienia)
 ══════════════════════════════════════════════ */
@@ -831,6 +908,53 @@ body.dark .result-dist .resultInput { background:rgba(251,191,36,0.12) !importan
   50%      { transform: translateX(-50%) translateY(-5px); }
 }
 
+.workflow-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.workflow-status::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 12px currentColor;
+}
+.tl-active {
+  z-index: 3;
+}
+.tl-active::before {
+  content: "NEXT";
+  top: -28px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #FFB800;
+  color: #0D1B2A;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  box-shadow: var(--shadow-md);
+}
+.tl-muted:not(.tl-active):not(:disabled) {
+  opacity: 0.62;
+  filter: saturate(0.72);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tl-pulse-green,
+  .tl-pulse-orange,
+  .tl-pulse-purple,
+  .tl-pulse-blue,
+  .tl-active::before,
+  .guide-step-circle.gs-active,
+  #calculatePointsBtn,
+  #finalEventBtn,
+  #selectEventsForCompetitionBtn {
+    animation: none !important;
+  }
+}
+
 
 /* Strefa kontrolek */
 #fsControls {
@@ -1018,12 +1142,44 @@ body.dark #judgeManagementPanel h3 { color:var(--gold); }
 ══════════════════════════════════════════════ */
 @media (max-width: 768px) {
   html { font-size: 15px; }
-  body { padding: 6px 8px 88px; }
+  body { padding: 6px 8px 150px; }
   .event-meta-inputs { flex-direction: column; gap: 8px; }
   #competitorForm .form-grid { grid-template-columns: 1fr; }
   .modal-box { width: 97%; padding: 15px; }
-  .actions-grid { grid-template-columns: 1fr 1fr; }
-  .security-panel .button-group { grid-template-columns: 1fr 1fr; }
+  .actions-grid,
+  .summary-actions-grid,
+  .security-panel .button-group,
+  #undo-redo-container,
+  .modal-buttons,
+  #dbManagementButtons,
+  #eventDbManagementButtons,
+  #newJudgeForm .judge-form-btns {
+    grid-template-columns: 1fr !important;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .actions-grid button,
+  .summary-actions-grid button,
+  .security-panel .button-group button,
+  #undo-redo-container button,
+  .modal-buttons button,
+  #dbManagementButtons button,
+  #eventDbManagementButtons button {
+    width: 100%;
+    min-height: 56px;
+    font-size: 1rem;
+  }
+  .workflow-actions {
+    position: sticky;
+    bottom: 8px;
+    z-index: 30;
+    padding: 8px;
+    margin: 12px -2px;
+    border-radius: var(--r-md);
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    box-shadow: var(--shadow-lg);
+  }
   #drawView-body { flex-direction: column; gap: 8px; }
   #wheelCanvas { width: clamp(200px,68vw,320px); height: clamp(200px,68vw,320px); }
   #drawSidePanel { max-width: 100%; width: 100%; max-height: 30vh; }
@@ -1036,7 +1192,7 @@ body.dark #judgeManagementPanel h3 { color:var(--gold); }
 ══════════════════════════════════════════════ */
 @media (max-width: 600px) {
   html { font-size: 15px; }
-  body { padding: 6px 6px 86px; }
+  body { padding: 6px 6px 155px; }
 
   /* Nagłówek */
   .header h1 { font-size: 1.4rem; letter-spacing: 2px; }
@@ -1045,8 +1201,8 @@ body.dark #judgeManagementPanel h3 { color:var(--gold); }
 
   /* Przyciski — większy target dotyku */
   button { min-height: 50px; font-size: 0.95rem; border-radius: var(--r-md); }
-  .actions-grid { grid-template-columns: 1fr 1fr; gap: 7px; }
-  .actions-grid button { font-size: 0.85rem; padding: 12px 6px; min-height: 52px; }
+  .actions-grid { grid-template-columns: 1fr; gap: 10px; }
+  .actions-grid button { font-size: 1rem; padding: 14px 12px; min-height: 58px; }
 
   /* Tabela → KARTY na smartfonie */
   .table-wrapper:not(.expanded) #resultsTable thead { display: none; }
@@ -1141,11 +1297,11 @@ body.dark #judgeManagementPanel h3 { color:var(--gold); }
   .modal-box { padding: 13px; border-radius: var(--r-md); max-height: 95dvh; }
   #dbManagementButtons, #eventDbManagementButtons { grid-template-columns: 1fr; }
   #competitorSelectionList { grid-template-columns: 1fr; max-height: 38vh; }
-  .security-panel .button-group { grid-template-columns: 1fr 1fr; }
-  .summary-actions-grid { grid-template-columns: 1fr 1fr; gap: 7px; }
-  .summary-actions-grid button { font-size: 0.82rem; padding: 11px 6px; }
+  .security-panel .button-group { grid-template-columns: 1fr; }
+  .summary-actions-grid { grid-template-columns: 1fr; gap: 10px; }
+  .summary-actions-grid button { font-size: 1rem; padding: 14px 12px; }
   #undo-redo-container { gap: 7px; }
-  #undo-redo-container button { padding: 10px 6px; font-size: 0.85rem; }
+  #undo-redo-container button { padding: 13px 10px; font-size: 0.95rem; }
   .focus-nav-buttons button { padding: 13px 6px; font-size: 0.92rem; }
 
   /* Draw */
@@ -1157,5 +1313,5 @@ body.dark #judgeManagementPanel h3 { color:var(--gold); }
   html { font-size: 14px; }
   #drawView-actions { flex-direction: column; align-items: stretch; }
   .draw-btn { width: 100%; }
-  .actions-grid button { font-size: 0.8rem; padding: 11px 5px; }
+  .actions-grid button { font-size: 0.95rem; padding: 13px 10px; }
 }

@@ -131,6 +131,90 @@ const Timeline = (() => {
     return { pulse, clear, onResultInput };
 })();
 
+const ActiveActionGuide = (() => {
+    const STEPS = {
+        calculate: { id: 'calculatePointsBtn', cls: 'tl-pulse-green', label: 'Przyznaj punkty' },
+        next: { id: 'nextEventBtn', cls: 'tl-pulse-orange', label: 'Nastepna konkurencja' },
+        final: { id: 'finalEventBtn', cls: 'tl-pulse-purple', label: 'Konkurencja finalowa' },
+        summary: { id: 'showFinalSummaryBtn', cls: 'tl-pulse-blue', label: 'Podsumowanie' },
+    };
+    const ACTION_CLASSES = ['tl-pulse-green', 'tl-pulse-orange', 'tl-pulse-purple', 'tl-pulse-blue', 'tl-active', 'tl-muted'];
+
+    function clear() {
+        Object.values(STEPS).forEach(step => {
+            const btn = document.getElementById(step.id);
+            if (btn) btn.classList.remove(...ACTION_CLASSES);
+        });
+    }
+
+    function setHint(message) {
+        const hint = document.getElementById('timelineHint');
+        if (hint) hint.textContent = message || '';
+    }
+
+    function isCurrentEventScored(state) {
+        return (state.eventHistory || []).some(event => Number(event.nr) === Number(state.eventNumber || 1));
+    }
+
+    function getResultStats() {
+        const inputs = Array.from(document.querySelectorAll('#resultsTable .resultInput'));
+        const editable = inputs.filter(input => !input.readOnly);
+        const filled = editable.filter(input => input.value.trim() !== '');
+        return { total: editable.length, filled: filled.length };
+    }
+
+    function getNextStep() {
+        const state = State.getState();
+        const planned = state.plannedEvents || [];
+        const currentNr = state.eventNumber || 1;
+        const scored = isCurrentEventScored(state);
+        const stats = getResultStats();
+        const isLastPlanned = planned.length > 0 && currentNr >= planned.length;
+        const nextIsFinal = planned.length > 0 && currentNr === planned.length - 1;
+
+        if (!state.competitors || state.competitors.length === 0) return null;
+        if (!scored) {
+            if (stats.total === 0) return null;
+            if (stats.filled === 0) return { message: 'Najpierw wpisz wyniki zawodnikow.' };
+            if (stats.filled < stats.total) {
+                return {
+                    step: 'calculate',
+                    message: `Uzupelniono ${stats.filled}/${stats.total}. Przyznaj punkty, gdy brakujace wyniki sa celowo DNF.`
+                };
+            }
+            return { step: 'calculate', message: 'Wszystkie wyniki sa wpisane. Teraz przyznaj punkty.' };
+        }
+        if (isLastPlanned) return { step: 'summary', message: 'Ostatnia konkurencja jest podsumowana. Przejdz do wynikow koncowych.' };
+        if (nextIsFinal) return { step: 'final', message: 'Kolejny krok to final. Ustaw konkurencje finalowa.' };
+        return { step: 'next', message: 'Konkurencja podsumowana. Przejdz do nastepnej.' };
+    }
+
+    function update() {
+        clear();
+        const next = getNextStep();
+        if (!next) {
+            setHint('');
+            return;
+        }
+        setHint(next.message || '');
+        if (!next.step || !STEPS[next.step]) return;
+
+        const active = STEPS[next.step];
+        Object.values(STEPS).forEach(step => {
+            const btn = document.getElementById(step.id);
+            if (!btn) return;
+            if (step.id === active.id) {
+                btn.classList.add(step.cls, 'tl-active');
+                btn.setAttribute('aria-label', `Kolejny krok: ${step.label}`);
+            } else {
+                btn.classList.add('tl-muted');
+            }
+        });
+    }
+
+    return { update, clear };
+})();
+
 /* ═══════════════════════════════════════════════════════
    CONFETTI BURST — efekt świetlny przy sukcesie
    Używa czystego CSS + DOM, zero zewnętrznych bibliotek
@@ -236,6 +320,7 @@ function refreshFullUI() {
     UI.setLogoUI(currentState.logoData);
     UI.DOMElements.eventNameInput.value = currentState.eventName || '';
     UI.DOMElements.eventLocationInput.value = currentState.eventLocation || '';
+    ActiveActionGuide.update();
 }
 
 /**
@@ -337,6 +422,30 @@ function safeAddListener(id, event, handler) {
         return;
     }
     el.addEventListener(event, handler);
+}
+
+function setupCollapsiblePanels() {
+    document.querySelectorAll('.collapsible-panel').forEach((panel, index) => {
+        const trigger = panel.querySelector('.collapsible-trigger');
+        const body = panel.querySelector('.collapsible-body');
+        if (!trigger || !body) return;
+
+        const key = panel.dataset.collapsibleKey || `panel-${index}`;
+        const storageKey = `s22_collapsible_${key}`;
+        const saved = localStorage.getItem(storageKey);
+        const defaultCollapsed = panel.dataset.collapsedDefault === 'true';
+        const collapsed = saved ? saved === 'collapsed' : defaultCollapsed;
+
+        function applyState(isCollapsed) {
+            panel.classList.toggle('is-collapsed', isCollapsed);
+            trigger.setAttribute('aria-expanded', String(!isCollapsed));
+            body.setAttribute('aria-hidden', String(isCollapsed));
+            localStorage.setItem(storageKey, isCollapsed ? 'collapsed' : 'open');
+        }
+
+        trigger.addEventListener('click', () => applyState(!panel.classList.contains('is-collapsed')));
+        applyState(collapsed);
+    });
 }
 
 function renderJudgeList() {
@@ -584,7 +693,7 @@ function setupEventListeners() {
             signalNext(); VIB.next();
             refreshFullUI();
             LiveDisplay.publishState();
-            Timeline.pulse('calculate');
+            ActiveActionGuide.update();
             Judge.refreshAllSessions(
                 State.getActiveCompetitors(),
                 State.getEventTitle(),
@@ -598,7 +707,7 @@ function setupEventListeners() {
             confettiBurst(32);
             refreshFullUI();
             LiveDisplay.publishState();
-            Timeline.pulse('calculate');
+            ActiveActionGuide.update();
             Judge.refreshAllSessions(
                 State.getActiveCompetitors(),
                 State.getEventTitle(),
@@ -612,7 +721,7 @@ function setupEventListeners() {
             confettiBurst(16);
             refreshFullUI();
             LiveDisplay.publishState();
-            Timeline.pulse('next');
+            ActiveActionGuide.update();
             Judge.refreshAllSessions(
                 State.getActiveCompetitors(),
                 State.getEventTitle(),
@@ -639,9 +748,11 @@ function setupEventListeners() {
         if (btn) UI.renderEventForEditing(parseInt(btn.dataset.eventId, 10));
     });
     // Zapisz i Przelicz w formularzu edycji
-    safeAddListener('summaryEventDetails','click', (e) => {
+    safeAddListener('summaryEventDetails','click', async (e) => {
         const btn = e.target.closest('[data-action="save-recalculate"]');
-        if (btn) Handlers.handleSaveAndRecalculate(parseInt(btn.dataset.eventId, 10));
+        if (btn && await Handlers.handleSaveAndRecalculate(parseInt(btn.dataset.eventId, 10))) {
+            UI.renderFinalSummary();
+        }
     });
     safeAddListener('summaryBackBtn','click', () => {
         const main = document.getElementById('mainContent');
@@ -656,8 +767,14 @@ function setupEventListeners() {
         const win = window.open(url, 'strongman-live', 'width=1280,height=720,menubar=no,toolbar=no');
         if (!win) { try { navigator.clipboard.writeText(url); } catch(_) {} UI.showNotification('Link skopiowany!','info'); }
     });
-    safeAddListener('highTypeBtn','click', () => Handlers.handleEventTypeChange('high'));
-    safeAddListener('lowTypeBtn','click', () => Handlers.handleEventTypeChange('low'));
+    safeAddListener('highTypeBtn','click', async () => {
+        await Handlers.handleEventTypeChange('high');
+        ActiveActionGuide.update();
+    });
+    safeAddListener('lowTypeBtn','click', async () => {
+        await Handlers.handleEventTypeChange('low');
+        ActiveActionGuide.update();
+    });
     safeAddListener('toggleTableWidthBtn','click', (e) => {
         const wrapper = document.querySelector('.table-wrapper');
         wrapper.classList.toggle('expanded');
@@ -690,19 +807,26 @@ function setupEventListeners() {
             e.target.classList.add('highlight-flash-input');
             setTimeout(() => e.target.classList.remove('highlight-flash-input'), 1000);
             // Timeline: po wpisaniu wyniku pokaż co nacisnąć dalej
-            Timeline.onResultInput();
+            ActiveActionGuide.update();
         }
     });
+
+    safeAddListener('resultsTable','input', (e) => {
+        if (e.target.classList.contains('resultInput')) ActiveActionGuide.update();
+    });
+    document.addEventListener('strongman:result-updated', () => ActiveActionGuide.update());
 
     // --- History & Editing (obsługiwane już powyżej przez summaryEventList/summaryEventDetails) ---
     safeAddListener('undoBtn','click', () => {
         if (Handlers.handleUndo()) {
             refreshFullUI();
+            ActiveActionGuide.update();
         }
     });
     safeAddListener('redoBtn','click', () => {
         if (Handlers.handleRedo()) {
             refreshFullUI();
+            ActiveActionGuide.update();
         }
     });
 
@@ -827,7 +951,7 @@ function setupEventListeners() {
     });
 
     // Delegacja kliknięć w liście sędziów: Otwórz ponownie | Kopiuj link | Usuń
-    safeAddListener('judgeList', 'click', (e) => {
+    safeAddListener('judgeList', 'click', async (e) => {
         const openBtn   = e.target.closest('[data-open-judge]');
         const copyBtn   = e.target.closest('[data-copy-url]');
         const revokeBtn = e.target.closest('[data-revoke-token]');
@@ -847,6 +971,10 @@ function setupEventListeners() {
                 showJudgeLinkDialog(label, url, copied, '');
             });
         } else if (revokeBtn) {
+            if (!await UI.showConfirmation(
+                'Usunac token sedziego pomocniczego?\n\n' +
+                'Ten telefon straci mozliwosc wysylania wynikow.'
+            )) return;
             Judge.revokeJudge(revokeBtn.dataset.revokeToken);
             renderJudgeList();
             UI.showNotification('Token sędziego usunięty.', 'info', 2000);
@@ -908,6 +1036,7 @@ function setupEventListeners() {
 async function initializeApp() {
     try {
         UI.initUI();
+        setupCollapsiblePanels();
         // DODANA LINIA - Inicjalizujemy nasz nowy prompter, aby był gotowy do użycia
         UI.initFullscreenPrompter();
         // Inicjalizacja audio — odblokowanie AudioContext przy pierwszej interakcji
